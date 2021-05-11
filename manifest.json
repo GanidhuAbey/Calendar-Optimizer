@@ -1,16 +1,16 @@
 {
     "manifest_version": 3,
     "name": "Calendar Optimizer",
-    "version": "0.1",
+    "version": "1.0",
 
     "background": {
         "service_worker": "background.js"
     },
 
-    "permissions": ["storage"],
+    "permissions": ["storage", "activeTab", "scripting"],
 
     "action": {
-        "defualt_popup": "popup.html",
+        "default_popup": "popup.html",
         "default_icon": {
             "16": "/images/get_started16.png",
             "32": "/images/get_started32.png",
