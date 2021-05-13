@@ -74,8 +74,6 @@ feeds.fetchCalenders = function() {
     })
 }
 
-feeds.requestInteracticeAuthToken();
-
 async function awaitGetData(url = '', token) {
     const response = await fetch(url, {
         headers: {
@@ -85,3 +83,12 @@ async function awaitGetData(url = '', token) {
 
     return response.json();
 }
+
+
+chrome.runtime.onMessage.addListener(
+  function(request, sender, sendResponse) {
+    if( request.message === "sign_in" ) {
+      feeds.requestInteracticeAuthToken();
+    }
+  }
+);
