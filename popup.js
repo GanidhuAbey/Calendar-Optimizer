@@ -2,5 +2,5 @@
 //to the storage, where it will be acessed by the background.js file.
 
 document.getElementById('button').addEventListener("click", function() {
-    chrome.runtime.sendMessage({"message": "sign_in"});
+    chrome.runtime.sendMessage({"message": "sign_in", "duedate": Date.parse(document.getElementById('due').value)});
 });
