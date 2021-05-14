@@ -3,14 +3,16 @@
 var duedate;
 var current;
 
+var feeds = {};
+
 var counter = 0;
 
-CALENDAR_LIST_API_URL_ = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
-CALENDAR_EVENTS_API_URL_ = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events?'
+feeds.CALENDAR_LIST_API_URL_ = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
+feeds.CALENDAR_EVENTS_API_URL_ = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events?'
 
-events = [];
-calendarIds = [];
-test_array = ["a", "b", "c"];
+feeds.events = [];
+feeds.calendarIds = [];
+feeds.test_array = ["a", "b", "c"];
 
 async function requestInteracticeAuthToken() {
     duedate = new Date(duedate);
@@ -31,13 +33,13 @@ async function fetchEvents() {
             .then(data => {
                 var i;
                 for (i = 0; i < data.items.length; i++) {
-                    calendarIds.push(data.items[i].id);
+                    feeds.calendarIds.push(data.items[i].id);
                 }
             })
             .then(async function() {
                 //console.log(calendarIds.length);
-                events = await recurseEvents(calendarIds.length, token, []);
-                console.log(events);
+                feeds.events = await recurseEvents(calendarIds.length, token, []);
+                console.log(feeds.events);
             });
 
     });
@@ -50,7 +52,7 @@ async function recurseEvents(size, token, event_list) {
         return;
     }
 
-    var url = CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(calendarIds[currentSize]));
+    var url = CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(feeds.calendarIds[currentSize]));
     var params = {singleEvents: true, timeMax: duedate.toISOString(), timeMin: current.toISOString()}
     url = url + new URLSearchParams(params);
 
