@@ -14,7 +14,7 @@ feeds.events = [];
 feeds.calendarIds = [];
 feeds.test_array = ["a", "b", "c"];
 
-async function requestInteracticeAuthToken() {
+feeds.requestInteracticeAuthToken = function() {
     duedate = new Date(duedate);
     console.log(duedate);
     console.log(current);
@@ -22,53 +22,42 @@ async function requestInteracticeAuthToken() {
         if (chrome.runtime.lastError || !token) {
             return;
         }
-        fetchEvents();
+        feeds.fetchEvents();
     })
 }
 
-async function fetchEvents() {
+feeds.fetchEvents = function() {
     var events = [];
-    await chrome.identity.getAuthToken({interactive: false}, async function(token) {
-        awaitGetData(feeds.CALENDAR_LIST_API_URL_, token)
-            .then(data => {
-                var i;
-                for (i = 0; i < data.items.length; i++) {
-                    feeds.calendarIds.push(data.items[i].id);
-                }
-            })
-            .then(async function() {
-                //console.log(calendarIds.length);
-                feeds.events = await recurseEvents(feeds.calendarIds.length, token, []);
-                console.log(feeds.events);
-            });
+    chrome.identity.getAuthToken({interactive: false}, async function(token) {
+        var calList = []
+        calList = await GetData(feeds.CALENDAR_LIST_API_URL_, token);
+        //console.log(calList.items.length);
 
-    });
-}
-//make calendarIds parameter of function
-async function recurseEvents(size, token, event_list) {
-    var currentSize = size - 1;
+        var k;
+        for (k = 0; k < calList.items.length; k++) {
+            feeds.calendarIds.push(calList.items[k].id);
+        }
 
-    if (currentSize == -1) {
-        return;
-    }
+        //console.log(feeds.calendarIds);
 
-    var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(feeds.calendarIds[currentSize]));
-    var params = {singleEvents: true, timeMax: duedate.toISOString(), timeMin: current.toISOString()}
-    url = url + new URLSearchParams(params);
+        var i;
+        for (i = 0; i < feeds.calendarIds.length; i++) {
+            var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(feeds.calendarIds[i]));
+            var params = {singleEvents: true, timeMax: duedate.toISOString(), timeMin: current.toISOString()}
+            url = url + new URLSearchParams(params);
 
-    await awaitGetData(url, token)
-        .then(async function(eventData) {
+            var eventData = await GetData(url, token);
             var j;
             for (j = 0; j < eventData.items.length; j++) {
-                var eventsForCalendar = eventData.items[j];
-                event_list.push(eventsForCalendar);
+                feeds.events.push(eventData.items[j]);
             }
-            await recurseEvents(currentSize, token, event_list);
-        });
-    return event_list;
+        }
+
+        console.log(feeds.events);
+    });
 }
 
-async function awaitGetData(url = '', token) {
+async function GetData(url = '', token) {
     const response = await fetch(url, {
         headers: {
             'Authorization': 'Bearer ' + token,
@@ -85,7 +74,7 @@ chrome.runtime.onMessage.addListener(
         current = new Date();
         duedate = request.duedate;
         console.log(duedate);
-        requestInteracticeAuthToken();
+        feeds.requestInteracticeAuthToken();
     }
   }
 );
