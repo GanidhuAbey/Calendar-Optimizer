@@ -29,7 +29,7 @@ async function requestInteracticeAuthToken() {
 async function fetchEvents() {
     var events = [];
     await chrome.identity.getAuthToken({interactive: false}, async function(token) {
-        awaitGetData(CALENDAR_LIST_API_URL_, token)
+        awaitGetData(feeds.CALENDAR_LIST_API_URL_, token)
             .then(data => {
                 var i;
                 for (i = 0; i < data.items.length; i++) {
@@ -38,7 +38,7 @@ async function fetchEvents() {
             })
             .then(async function() {
                 //console.log(calendarIds.length);
-                feeds.events = await recurseEvents(calendarIds.length, token, []);
+                feeds.events = await recurseEvents(feeds.calendarIds.length, token, []);
                 console.log(feeds.events);
             });
 
@@ -52,7 +52,7 @@ async function recurseEvents(size, token, event_list) {
         return;
     }
 
-    var url = CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(feeds.calendarIds[currentSize]));
+    var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(feeds.calendarIds[currentSize]));
     var params = {singleEvents: true, timeMax: duedate.toISOString(), timeMin: current.toISOString()}
     url = url + new URLSearchParams(params);
 
