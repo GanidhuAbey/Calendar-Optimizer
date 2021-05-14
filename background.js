@@ -51,6 +51,8 @@ feeds.fetchEvents = function() {
             }
         }
         events = convertToDays(events);
+        freetime = createFreetimeArr(events);
+        console.log(freetime);
     });
 }
 
@@ -144,45 +146,58 @@ Globals Used: ?
 Notes: NOT COMPLETE
 ========================================================*/
 
-feeds.createFreetimeArr = function(){
-    var eventsarr = [];//testing
+function createFreetimeArr(eventsArr){
+
     var freetime = [];
+    var i = 0;
+    for(i = 0; i < eventsArr.length; i++){
+      freetime.push([]);
+    }
+    console.log(freetime);
 
     var currentTimeOfDay;
     var numOfEvents;
-    var counter;
+    var dateObj;
 
-    currentTimeOfDay = START_OF_DAY;
+
+    start_of_day = "8:00am";
+    end_of_day = "9:00pm";
+
+    currentTimeOfDay = start_of_day;
+
 
     var i;
-    for(i = 0; i < eventsarr.length; i++){
-        numOfEvents = eventsarr[i].length;
+    for(i = 0; i < eventsArr.length; i++){
+        numOfEvents = eventsArr[i].length;
 
         var j;
         for(j = 0; j < numOfEvents - 1; j++){
-
-              var obj = {
-                  'startTime' : currentTimeOfDay;
-                  'endTime' : eventarr[j].startTime;
+              dateObj = {
+                  'startTime' : currentTimeOfDay,
+                  'endTime' : eventsArr[j].startTime,
               };
-              freetime[counter].push(obj);
+              freetime[i].push(dateObj);
 
-              currentTimeOfDay = eventarr[counter].endTime;
-              counter += 1;
+              currentTimeOfDay = eventsArr[j].endTime;
+
 
         }
 
-        var obj = {
-            'startTime' : currentTimeOfDay;
-            'endTime' : END_OF_DAY;
+
+        dateObj = {
+            'startTime' : currentTimeOfDay,
+            'endTime' : end_of_day,
         };
-        freetime[counter].push(obj);
+        freetime[i].push(dateObj);
+
 
 
     }
+    return freetime;
 
 
 }
+
 
 
 
@@ -267,3 +282,20 @@ feeds.createEventList = function(){
 
 }
 */
+
+
+
+
+/*========================================================
+Helper Functions
+========================================================*/
+
+function populateArr(length, type){
+  var arr = [];
+  var i = 0;
+  for(i = 0; i < length; i++){
+    arr.push(type);
+  }
+  return arr;
+
+}
