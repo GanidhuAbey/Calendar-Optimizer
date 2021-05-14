@@ -21,6 +21,7 @@ async function requestInteracticeAuthToken() {
             return;
         }
         fetchEvents();
+        //console.log(calendarIds);
     })
 }
 
@@ -31,19 +32,36 @@ async function fetchEvents() {
             .then(data => {
                 var i;
                 for (i = 0; i < data.items.length; i++) {
+                    /*
+                    var url = CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(data.items[i].id));
+                    var params = {singleEvents: true, timeMax: duedate.toISOString(), timeMin: current.toISOString()}
+                    url = url + new URLSearchParams(params);
+                    */
+                    chrome.storage.local.set(data.items[i])
                     calendarIds.push(data.items[i].id);
+                    /*
+                    awaitGetData(url, token)
+                        .then(eventData => {
+                            var j;
+                            for (j = 0; j < eventData.items.length; j++) {
+                                var event = eventData.items[j];
+                                events.push(event);
+                            }
+                            console.log(events);
+                        });
+                    */
                 }
             })
             .then(async function() {
                 //console.log(calendarIds.length);
                 events = await recurseEvents(calendarIds.length, token, []);
                 console.log(events);
-            });
+            })
 
-    });
+    })
+    //console.log(calendarIds);
 }
-//make calendarIds parameter of function
-async function recurseEvents(size, token, event_list) {
+async function recurseEvents(size, token) {
     var currentSize = size - 1;
 
     if (currentSize == -1) {
@@ -58,12 +76,12 @@ async function recurseEvents(size, token, event_list) {
         .then(async function(eventData) {
             var j;
             for (j = 0; j < eventData.items.length; j++) {
-                var eventsForCalendar = eventData.items[j];
-                event_list.push(eventsForCalendar);
+                var event = eventData.items[j];
+                events.push(event);
             }
-            await recurseEvents(currentSize, token, event_list);
+            await recurseEvents(currentSize, token);
         });
-    return event_list;
+    return events;
 }
 
 async function awaitGetData(url = '', token) {
