@@ -1,0 +1,36 @@
+{
+    "manifest_version": 3,
+    "name": "Calendar Optimizer",
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqHqhc/rU0Cs5PL0kzvHwob6Cg4aeOlGsCmEK5ERRYz729oeyHZumyTKJBZqh3hCIId7Y2xCxyQa2pbHby7QtE2/7K7Nz3JVAAyiobuEtWiInZ0hg0dTpEbzZHzb/HV8RWydq4vN3PwOvoxeKDl4jBTApK5I8BPX1RfbqL/7Oov3rayafBrtMy5ADr+Qn+4VJegDA1HeC5Lr4KEWw5HcO+wrTFdeT/iUTE6MTZSls08YUwcJ8Dg2m9UcI+vgkwG9TviSuntVZMvlkisd+U6A693TjpWpFijWVMngGI1S/0ZoDZLSypx72H5fTB1bE7CmOyPuQc6fzoyvZqKr4SPu+KQIDAQAB",
+    "version": "1.0",
+
+    "background": {
+        "service_worker": "background.js"
+    },
+
+    "oauth2": {
+        "client_id": "264824737637-c411l4tc3jj0t9ptngnqsbtiao3tccdi.apps.googleusercontent.com",
+        "scopes": [
+            "https://www.google.com/calendar/feeds"
+        ]
+    },
+
+    "permissions": ["storage", "activeTab", "scripting", "identity"],
+
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": {
+            "16": "/images/get_started16.png",
+            "32": "/images/get_started32.png",
+            "48": "/images/get_started48.png",
+            "128": "/images/get_started128.png"
+        }
+    },
+
+    "icons": {
+        "16": "/images/get_started16.png",
+        "32": "/images/get_started32.png",
+        "48": "/images/get_started48.png",
+        "128": "/images/get_started128.png"
+    }
+}

@@ -80,6 +80,60 @@ chrome.runtime.onMessage.addListener(
 );
 
 /*========================================================
+Description: Creates an two dimensional array organaized by days and in each day their Datetime obj
+Parameters:none
+Returns: freeTimeArray
+SideEffects: none
+Globals Used: ?
+Notes: NOT COMPLETE
+========================================================*/
+
+feeds.createFreetimeArr = function(){
+    var eventsarr = [];//testing
+    var freetime = [];
+
+    var currentTimeOfDay;
+    var numOfEvents;
+    var counter;
+
+    currentTimeOfDay = START_OF_DAY;
+
+    var i;
+    for(i = 0; i < eventsarr.length; i++){
+        numOfEvents = eventsarr[i].length;
+
+        var j;
+        for(j = 0; j < numOfEvents - 1; j++){
+
+              var obj = {
+                  'startTime' : currentTimeOfDay;
+                  'endTime' : eventarr[j].startTime;
+              };
+              freetime[counter].push(obj);
+
+              currentTimeOfDay = eventarr[counter].endTime;
+              counter += 1;
+
+        }
+
+        var obj = {
+            'startTime' : currentTimeOfDay;
+            'endTime' : END_OF_DAY;
+        };
+        freetime[counter].push(obj);
+
+
+    }
+
+
+}
+
+
+
+
+
+
+/*========================================================
 Description: Adds an event in to the users calendar
 Parameters:none
 Returns:none
@@ -118,19 +172,42 @@ Globals Used: duedate
 Notes: *Just a testing function for right now
 ========================================================*/
 
-feeds.createEvent = function(summary = ''){
-    var startDate = new Date(duedate);// Copies duedate -> startDate
-    var newDate = new Date(duedate);
-
-    var hour = startDate.getHours(); // return the hours in startDate in integer format -> hour
-    newDate.setHours(hour + 1);// Sets the hours in newDate
-
+feeds.createEvent = function(summary = '', startDate, endDate){
     var event = {// Calendar api event: https://developers.google.com/calendar/v3/reference/events#resource-representations
       'summary' : summary,
       'start': {'dateTime' : startDate.toISOString()},
-      'end': {'dateTime' : newDate.toISOString()},
+      'end': {'dateTime' : endDate.toISOString()},
     };
-
     return event;
 
 }
+
+/*========================================================
+Description: Creates a new calendar event.
+Parameters: Name of the event
+Returns: An Event variable
+SideEffects: none
+Globals Used: duedate
+Notes: *Just a testing function for right now
+========================================================*/
+/*
+feeds.createEventList = function(){
+    var hourPer = [];//testing
+    var freetime =[];//testing
+
+    var i;
+    for(i = 0; i < freetime.length; i++){
+          var timeInDay = hourPer[i];
+          var j;
+          for(j = 0; j < freetime[i].length; j++){
+                var startDate = freetime[j].startDate;
+                var endDate = freetime
+
+          }
+
+    }
+
+
+
+}
+*/
