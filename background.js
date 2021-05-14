@@ -10,9 +10,6 @@ var counter = 0;
 feeds.CALENDAR_LIST_API_URL_ = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 feeds.CALENDAR_EVENTS_API_URL_ = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events?'
 
-feeds.events = [];
-feeds.calendarIds = [];
-feeds.test_array = ["a", "b", "c"];
 
 feeds.requestInteracticeAuthToken = function() {
     duedate = new Date(duedate);
@@ -27,35 +24,94 @@ feeds.requestInteracticeAuthToken = function() {
 }
 
 feeds.fetchEvents = function() {
-    var events = [];
     chrome.identity.getAuthToken({interactive: false}, async function(token) {
-        var calList = []
+        var calList = [];
+        var events = [];
+        var calendarIds = [];
         calList = await GetData(feeds.CALENDAR_LIST_API_URL_, token);
-        //console.log(calList.items.length);
 
         var k;
         for (k = 0; k < calList.items.length; k++) {
-            feeds.calendarIds.push(calList.items[k].id);
+            calendarIds.push(calList.items[k].id);
         }
 
-        //console.log(feeds.calendarIds);
-
         var i;
-        for (i = 0; i < feeds.calendarIds.length; i++) {
-            var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(feeds.calendarIds[i]));
-            var params = {singleEvents: true, timeMax: duedate.toISOString(), timeMin: current.toISOString()}
+        for (i = 0; i < calendarIds.length; i++) {
+            var d = duedate.toISOString();
+            var c = current.toISOString();
+
+            var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(calendarIds[i]));
+            var params = {orderBy: "startTime", singleEvents: true, timeMax: d, timeMin: c}
             url = url + new URLSearchParams(params);
 
             var eventData = await GetData(url, token);
             var j;
             for (j = 0; j < eventData.items.length; j++) {
-                feeds.events.push(eventData.items[j]);
+                events.push(eventData.items[j]);
             }
         }
-
-        console.log(feeds.events);
+        events = convertToDays(events);
     });
 }
+
+function convertToDays(events) {
+    var difference = Date.parse(duedate) - Date.parse(current);
+    difference = Math.ceil(difference/86400000); //convert miliseconds to days
+
+    var allEvents = [];
+
+    //populate allEvents
+    var j;
+    for (j = 0; j < difference; j++) {
+        allEvents.push([]);
+    }
+
+    var i;
+    for (i = 0; i < events.length; i++) {
+        var currentEvent = events[i];
+        var eventDay = Date.parse(currentEvent.start.dateTime) - Date.parse(current);
+        eventDay = Math.ceil(eventDay/86400000); //convert miliseconds to days
+
+        allEvents[eventDay].push(currentEvent);
+    }
+
+    return allEvents;
+}
+
+
+//****function below does the same thing as function above but does not include blank arrays
+//****to represent days with no events.
+
+/*
+//function converts one dimensional event array into 2-dimensional array based on days
+function convertToDays(events) {
+    var allEvents = [];
+    var currentDay = current.getDate();
+
+    var eventsForDay = [];
+    var i;
+    for (i = 0; i < events.length; i++) {
+        var currentEvent = events[i];
+        var eventDay = new Date(Date.parse(currentEvent.start.dateTime));
+        eventDay = eventDay.getDate();
+
+        if (currentDay == eventDay) {
+            eventsForDay.push(currentEvent);
+        }
+        else {
+            if (eventsForDay.length != 0) {
+                allEvents.push(eventsForDay);
+            }
+            eventsForDay = [currentEvent];
+            currentDay = eventDay;
+        }
+    }
+    allEvents.push(eventsForDay);
+
+    return allEvents;
+}
+*/
+
 
 async function GetData(url = '', token) {
     const response = await fetch(url, {
