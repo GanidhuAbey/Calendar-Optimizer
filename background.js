@@ -4,7 +4,7 @@ var duedate;
 var current;
 
 //will be set in user preferences
-var START_DAY = 8;
+var START_DAY = 0;
 
 var feeds = {};
 
@@ -54,23 +54,30 @@ feeds.fetchEvents = function() {
             }
         }
 
-        events = convertToDays(events);
-        console.log(events);
-        freetime = createFreetimeArr(events);
-
+        events = orderByDays(events);
+        var freetime = createFreetimeArr(events);
         console.log(freetime);
+
+        var percentage = calculatePercentages(freetime);
+        console.log(percentage);
     });
 }
 
-function convertToDays(events) {
+function orderByDays(events) {
     //set start of current day
     var currentStart = current;
     currentStart = currentStart.setHours(START_DAY);
 
+    var endTime = duedate;
+    //change to 24 to include final day
+    endTime = endTime.setHours(START_DAY);
+
     //console.log(currentStart);
 
-    var difference = Date.parse(duedate) - currentStart;
+    var difference = (duedate).getTime() - currentStart;
     difference = Math.ceil(difference/86400000); //convert miliseconds to days
+
+    //console.log(difference);
 
     var allEvents = [];
 
@@ -79,27 +86,79 @@ function convertToDays(events) {
     for (j = 0; j < difference; j++) {
         allEvents.push([]);
     }
-    //console.log(difference);
 
     var i;
     for (i = 0; i < events.length; i++) {
         var currentEvent = events[i];
-        var eventDay = new Date(Date.parse(currentEvent.start.dateTime));
-        eventDay = eventDay.setHours(8);
+        var eventDay = new Date(currentEvent.start.dateTime);
+        eventDay = eventDay.setHours(START_DAY);
         eventDay = eventDay - currentStart;
         eventDay = Math.ceil(eventDay/86400000); //convert miliseconds to days
 
-        //console.log(eventDay);
         allEvents[eventDay].push(currentEvent);
     }
 
     return allEvents;
 }
 
-//converts freetime array to hours
-function convertToHours() {
+function calculatePercentages(freetime) {
+    var time = convertToMiliseconds(freetime);
 
+    var average = calculateAverage(time);
+
+    var percentage = [];
+
+    var i;
+    for (i = 0; i < time.length; i++) {
+        percentage.push(time[i] / percentage);
+    }
+
+    return percentage;
 }
+
+/*
+//allocates user freetime and returns array of hours needed each day
+function allocateFreeTime(freetime, percentage) {
+    //convert freetime array to hours
+    var milliseconds = convertToMiliseconds(freetime);
+
+    //apply percentages to each day
+    var allocate = [];
+    var i;
+    for (i = 0; i < hours.length; i++) {
+        allocate.push(milliseconds[i] * percentage[i]);
+    }
+
+    //return new array
+    return allocate;
+}
+*/
+function calculateAverage(time) {
+    var sum = 0;
+    var size = time.length;
+    var i;
+    for (i = 0; i < size; i++) {
+        sum += time[i];
+    }
+
+    return sum / size;
+}
+
+//converts freetime array to hours
+function convertToMiliseconds(freetime) {
+    var time = [];
+
+    var i;
+    for (i = 0; i < freetime.length; i++) {
+        var j;
+        for (j = 0; j < freetime[i].length; j++) {
+            var difference = (freetime[i][j].startTime).getTime() - (freetime[i][j].endTime).getTime();
+        }
+    }
+
+    return time;
+}
+
 
 //****function below does the same thing as function above but does not include blank arrays
 //****to represent days with no events.
@@ -114,7 +173,7 @@ function convertToDays(events) {
     var i;
     for (i = 0; i < events.length; i++) {
         var currentEvent = events[i];
-        var eventDay = new Date(Date.parse(currentEvent.start.dateTime));
+        var eventDay = new Date(currentEvent.start.dateTime);
         eventDay = eventDay.getDate();
 
         if (currentDay == eventDay) {
@@ -151,7 +210,7 @@ chrome.runtime.onMessage.addListener(
     if( request.message === "sign_in" ) {
         current = new Date();
         duedate = request.duedate + 25200000; //add 7 hourse
-        console.log(duedate);
+        //console.log(duedate);
         feeds.requestInteracticeAuthToken();
     }
   }
@@ -193,12 +252,12 @@ function createFreetimeArr(eventsArr){
 
         var j;
         for(j = 0; j < numOfEvents; j++){
-              console.log(eventsArr[i][j].start.dateTime);
+              //console.log(eventsArr[i][j].start.dateTime);
               endTime = new Date(eventsArr[i][j].start.dateTime);//change .startTime
 
               dateObj = {
-                  'startTime' : (new Date(currentTimeOfDay)).getHours(),
-                  'endTime' : (new Date(endTime)).getHours(),
+                  'startTime' : (new Date(currentTimeOfDay)),
+                  'endTime' : (new Date(endTime)),
               };
               freetime[i].push(dateObj);
 
