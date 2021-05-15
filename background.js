@@ -55,7 +55,10 @@ feeds.fetchEvents = function() {
         }
 
         events = convertToDays(events);
+        console.log(events);
         freetime = createFreetimeArr(events);
+
+        console.log(freetime);
     });
 }
 
@@ -159,8 +162,10 @@ Notes: NOT COMPLETE
 ========================================================*/
 
 function createFreetimeArr(eventsArr){
-
+    var gap;
+    gap = 15 * 60000;// 15 mins gap break after event in milliseconds
     var freetime = [];
+
     var i = 0;
     for(i = 0; i < eventsArr.length; i++){
       freetime.push([]);
@@ -169,43 +174,41 @@ function createFreetimeArr(eventsArr){
     var currentTimeOfDay;
     var numOfEvents;
     var dateObj;
-
+    var endTime;
 
     start_of_day = "8:00am";
     end_of_day = "9:00pm";
 
-    currentTimeOfDay = start_of_day;
-
-
     var i;
     for(i = 0; i < eventsArr.length; i++){
+        currentTimeOfDay = start_of_day;
         numOfEvents = eventsArr[i].length;
 
         var j;
-        for(j = 0; j < numOfEvents - 1; j++){
+        for(j = 0; j < numOfEvents; j++){
+              console.log(i);
+              endTime = new Date(eventsArr[i][j].start.dateTime);//change .startTime
+
               dateObj = {
                   'startTime' : currentTimeOfDay,
-                  'endTime' : eventsArr[j].startTime,
+                  'endTime' : endTime,
               };
               freetime[i].push(dateObj);
 
-              currentTimeOfDay = eventsArr[j].endTime;
-
+              //Introducing X min break between events
+              currentTimeOfDay = new Date(eventsArr[i][j].end.dateTime);//change .endTime
+              currentTimeOfDay.setTime(currentTimeOfDay.getTime() + gap);
+              currentTimeOfDay = new Date(currentTimeOfDay);
 
         }
-
 
         dateObj = {
             'startTime' : currentTimeOfDay,
             'endTime' : end_of_day,
         };
         freetime[i].push(dateObj);
-
-
-
     }
     return freetime;
-
 
 }
 
