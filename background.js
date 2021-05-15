@@ -167,40 +167,55 @@ Notes: NOT COMPLETE
 ========================================================*/
 
 function createFreetimeArr(eventsArr){
+  //Variables To be set Gloabally
     var gap;
-    gap = 15 * 60000;// 15 mins gap break after event in milliseconds
-    var freetime = [];
+    gap = 0 * 60000;// 15 mins gap break after event in milliseconds
+    var start_of_day = new Date();
+    start_of_day.setHours(8);
+    start_of_day.setMinutes(0);
+    start_of_day.setSeconds(0);
+    var end_of_day = new Date();
+    end_of_day.setHours(21);
+    end_of_day.setMinutes(0);
+    end_of_day.setSeconds(0);
 
+
+
+    var freetime = [];
+    //Filling in the free time array with arrays
     var i = 0;
     for(i = 0; i < eventsArr.length; i++){
       freetime.push([]);
     }
 
+    //variables used in the function
     var currentTimeOfDay;
     var numOfEvents;
     var dateObj;
     var endTime;
 
-    start_of_day = new Date();
-    start_of_day = start_of_day.setHours(8);
-
-    end_of_day = "9:00pm";
-
     var i;
     for(i = 0; i < eventsArr.length; i++){
-        currentTimeOfDay = start_of_day;
+
+
+
+        currentTimeOfDay = new Date(start_of_day);
+
         numOfEvents = eventsArr[i].length;
 
         var j;
         for(j = 0; j < numOfEvents; j++){
-              console.log(eventsArr[i][j].start.dateTime);
+
               endTime = new Date(eventsArr[i][j].start.dateTime);//change .startTime
 
-              dateObj = {
-                  'startTime' : (new Date(currentTimeOfDay)).getHours(),
-                  'endTime' : (new Date(endTime)).getHours(),
-              };
-              freetime[i].push(dateObj);
+
+                dateObj = {
+                    'startTime' : (new Date(currentTimeOfDay)),
+                    'endTime' : (new Date(endTime)),
+                };
+                if((endTime.getTime() - currentTimeOfDay.getTime()) > 0)
+                freetime[i].push(dateObj);
+
 
               //Introducing X min break between events
               currentTimeOfDay = new Date(eventsArr[i][j].end.dateTime);//change .endTime
@@ -209,11 +224,18 @@ function createFreetimeArr(eventsArr){
 
         }
 
-        dateObj = {
-            'startTime' : (new Date(currentTimeOfDay)).getHours(),
-            'endTime' : end_of_day,
-        };
-        freetime[i].push(dateObj);
+
+              dateObj = {
+                  'startTime' : (new Date(currentTimeOfDay)),
+                  'endTime' : end_of_day,
+              };
+              if((end_of_day.getTime() - currentTimeOfDay.getTime()) > 0)
+              freetime[i].push(dateObj);
+
+              //Adding days in milliseconds to start and end of day value
+              start_of_day = new Date(start_of_day.getTime() + 8.64e+7);
+              end_of_day = new Date(end_of_day.getTime() + 8.64e+7);
+
     }
     return freetime;
 
