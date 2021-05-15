@@ -96,6 +96,11 @@ function convertToDays(events) {
     return allEvents;
 }
 
+//converts freetime array to hours
+function convertToHours() {
+
+}
+
 //****function below does the same thing as function above but does not include blank arrays
 //****to represent days with no events.
 
@@ -176,7 +181,9 @@ function createFreetimeArr(eventsArr){
     var dateObj;
     var endTime;
 
-    start_of_day = "8:00am";
+    start_of_day = new Date();
+    start_of_day = start_of_day.setHours(8);
+
     end_of_day = "9:00pm";
 
     var i;
@@ -186,12 +193,12 @@ function createFreetimeArr(eventsArr){
 
         var j;
         for(j = 0; j < numOfEvents; j++){
-              console.log(i);
+              console.log(eventsArr[i][j].start.dateTime);
               endTime = new Date(eventsArr[i][j].start.dateTime);//change .startTime
 
               dateObj = {
-                  'startTime' : currentTimeOfDay,
-                  'endTime' : endTime,
+                  'startTime' : (new Date(currentTimeOfDay)).getHours(),
+                  'endTime' : (new Date(endTime)).getHours(),
               };
               freetime[i].push(dateObj);
 
@@ -203,7 +210,7 @@ function createFreetimeArr(eventsArr){
         }
 
         dateObj = {
-            'startTime' : currentTimeOfDay,
+            'startTime' : (new Date(currentTimeOfDay)).getHours(),
             'endTime' : end_of_day,
         };
         freetime[i].push(dateObj);
