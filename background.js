@@ -55,8 +55,9 @@ feeds.fetchEvents = function() {
         }
 
         events = convertToDays(events);
-        freetime = createFreetimeArr(events);
         console.log(events);
+        freetime = createFreetimeArr(events);
+
         console.log(freetime);
     });
 }
@@ -162,8 +163,10 @@ Notes: NOT COMPLETE
 ========================================================*/
 
 function createFreetimeArr(eventsArr){
-    var gap = 15 *  60000; // 15 mins gap break after event in milliseconds
+    var gap;
+    gap = 15 * 60000;// 15 mins gap break after event in milliseconds
     var freetime = [];
+
     var i = 0;
     for(i = 0; i < eventsArr.length; i++){
       freetime.push([]);
@@ -174,20 +177,18 @@ function createFreetimeArr(eventsArr){
     var dateObj;
     var endTime;
 
-
     start_of_day = "8:00am";
     end_of_day = "9:00pm";
 
-    currentTimeOfDay = start_of_day;
-
-
     var i;
     for(i = 0; i < eventsArr.length; i++){
+        currentTimeOfDay = start_of_day;
         numOfEvents = eventsArr[i].length;
 
         var j;
-        for(j = 0; j < numOfEvents - 1; j++){
-              endTime = new Date(eventsArr[j].startTime);//change .startTime
+        for(j = 0; j < numOfEvents; j++){
+              console.log(i);
+              endTime = new Date(eventsArr[i][j].start.dateTime);//change .startTime
 
               dateObj = {
                   'startTime' : currentTimeOfDay,
@@ -196,8 +197,8 @@ function createFreetimeArr(eventsArr){
               freetime[i].push(dateObj);
 
               //Introducing X min break between events
-              currentTimeOfDay = new Date(eventsArr[j].endTime);//change .endTime
-              currentTimeOfDay.setTime(currentTimeOfDay.getTime(); + gap);
+              currentTimeOfDay = new Date(eventsArr[i][j].end.dateTime);//change .endTime
+              currentTimeOfDay.setTime(currentTimeOfDay.getTime() + gap);
               currentTimeOfDay = new Date(currentTimeOfDay);
 
         }
@@ -209,6 +210,7 @@ function createFreetimeArr(eventsArr){
         freetime[i].push(dateObj);
     }
     return freetime;
+
 }
 
 
