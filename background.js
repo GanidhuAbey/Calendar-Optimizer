@@ -56,8 +56,6 @@ feeds.fetchEvents = function() {
 
         events = convertToDays(events);
         freetime = createFreetimeArr(events);
-        console.log(events);
-        console.log(freetime);
     });
 }
 
@@ -94,7 +92,6 @@ function convertToDays(events) {
 
     return allEvents;
 }
-
 
 //****function below does the same thing as function above but does not include blank arrays
 //****to represent days with no events.
