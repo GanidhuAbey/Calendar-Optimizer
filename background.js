@@ -3,6 +3,9 @@
 var duedate;
 var current;
 
+//will be set in user preferences
+var START_DAY = 8;
+
 var feeds = {};
 
 var counter = 0;
@@ -50,14 +53,22 @@ feeds.fetchEvents = function() {
                 events.push(eventData.items[j]);
             }
         }
+
         events = convertToDays(events);
         freetime = createFreetimeArr(events);
+        console.log(events);
         console.log(freetime);
     });
 }
 
 function convertToDays(events) {
-    var difference = Date.parse(duedate) - Date.parse(current);
+    //set start of current day
+    var currentStart = current;
+    currentStart = currentStart.setHours(START_DAY);
+
+    //console.log(currentStart);
+
+    var difference = Date.parse(duedate) - currentStart;
     difference = Math.ceil(difference/86400000); //convert miliseconds to days
 
     var allEvents = [];
@@ -67,13 +78,17 @@ function convertToDays(events) {
     for (j = 0; j < difference; j++) {
         allEvents.push([]);
     }
+    //console.log(difference);
 
     var i;
     for (i = 0; i < events.length; i++) {
         var currentEvent = events[i];
-        var eventDay = Date.parse(currentEvent.start.dateTime) - Date.parse(current);
+        var eventDay = new Date(Date.parse(currentEvent.start.dateTime));
+        eventDay = eventDay.setHours(8);
+        eventDay = eventDay - currentStart;
         eventDay = Math.ceil(eventDay/86400000); //convert miliseconds to days
 
+        //console.log(eventDay);
         allEvents[eventDay].push(currentEvent);
     }
 
@@ -130,7 +145,7 @@ chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "sign_in" ) {
         current = new Date();
-        duedate = request.duedate;
+        duedate = request.duedate + 25200000; //add 7 hourse
         console.log(duedate);
         feeds.requestInteracticeAuthToken();
     }
@@ -153,7 +168,6 @@ function createFreetimeArr(eventsArr){
     for(i = 0; i < eventsArr.length; i++){
       freetime.push([]);
     }
-    console.log(freetime);
 
     var currentTimeOfDay;
     var numOfEvents;
