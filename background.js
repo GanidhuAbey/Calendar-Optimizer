@@ -198,7 +198,6 @@ function createFreetimeArr(eventsArr){
     for(i = 0; i < eventsArr.length; i++){
 
 
-
         currentTimeOfDay = new Date(start_of_day);
 
         numOfEvents = eventsArr[i].length;
@@ -256,23 +255,26 @@ Globals Used: none
 Notes: NOT COMPLETE
 ========================================================*/
 
-feeds.addEvents = function(){
+feeds.pushEvents = function(){
+
 
     chrome.identity.getAuthToken({interactive: false}, function(token){// Get authtoken and calls function(token)
+      var newEvents = [];
+      newEvents = feeds.createEventList();//calls createvent func with name 'Dinner Sap'
 
-      var eventToAdd = feeds.createEvent('Dinner sap');//calls createvent func with name 'Dinner Sap'
+      var i;
+      for(i = 0; i < newEvents.length; i++){
+          fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', //sending a request to the google calendar api, primary user calendar
+          {
+              method: 'POST', // Sends the information in to the api
+              headers: {
+                  'Authorization': 'Bearer ' + token, //type of permissions + authorization token for the api
+              },
+              body: JSON.stringify(newEvents[i]), // Data being send to the api
 
-      fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', //sending a request to the google calendar api, primary user calendar
-      {
-          method: 'POST', // Sends the information in to the api
-          headers: {
-              'Authorization': 'Bearer ' + token, //type of permissions + authorization token for the api
-          },
-          body: JSON.stringify(eventToAdd), // Data being send to the api
-
-      })
-      .then(data => console.log(data)); // log the sent request in the terminal
-
+          })
+          .then(data => console.log(data)); // log the sent request in the terminal
+      }
     });
 
 }
@@ -287,44 +289,71 @@ Notes: *Just a testing function for right now
 ========================================================*/
 
 feeds.createEvent = function(summary = '', startDate, endDate){
-    var event = {// Calendar api event: https://developers.google.com/calendar/v3/reference/events#resource-representations
+    var newEvent = {// Calendar api event: https://developers.google.com/calendar/v3/reference/events#resource-representations
       'summary' : summary,
       'start': {'dateTime' : startDate.toISOString()},
       'end': {'dateTime' : endDate.toISOString()},
     };
-    return event;
+    return newEvent;
 
 }
 
 /*========================================================
-Description: Creates a new calendar event.
-Parameters: Name of the event
-Returns: An Event variable
-SideEffects: none
-Globals Used: duedate
-Notes: *Just a testing function for right now
+Description: Creates a  list of calendar events.
+Parameters: ?
+Returns: List of Events
+SideEffects: ?
+Globals Used: none
+Notes: ?
 ========================================================*/
-/*
+
 feeds.createEventList = function(){
     var hourPer = [];//testing
     var freetime =[];//testing
 
+    var newEvents = [];
+
+    var timeInDay;
+    var startTime;
+    var endTime;
+    var gap;
+    var name = 'dueDate Event'; //has to be a parameter
+    var newEvent;
+
+
     var i;
     for(i = 0; i < freetime.length; i++){
-          var timeInDay = hourPer[i];
+          timeInDay = hourPer[i];
+
           var j;
-          for(j = 0; j < freetime[i].length; j++){
-                var startDate = freetime[j].startDate;
-                var endDate = freetime
+          while(timeInDay > 0){
+                startTime = new Date(freetime[i][j].startTime);
+                endTime = new Date(freetime[i][j].endTime);
+
+                gap = endTime.getTime() - startTime.getTime();
+
+
+                if(gap <= timeInDay){
+                    newEvent = feeds.createEvent(name, startTime, endTime);
+                }
+                else{
+                    endTime = new Date(startTime.getTime() + timeInDay);
+                    newEvent = feeds.createEvent(name, startTime, endTime);
+                    gap = timeInDay
+
+                }
+
+                newEvents.push(newEvent);
+                timeInDay -= timeInDay - gap;
 
           }
 
     }
 
-
+    return newEvents;
 
 }
-*/
+
 
 
 
