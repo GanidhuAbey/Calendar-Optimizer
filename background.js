@@ -3,6 +3,8 @@
 var duedate;
 var current;
 
+var timeNeeded;
+
 //will be set in user preferences
 var START_DAY = 0;
 
@@ -54,32 +56,57 @@ feeds.fetchEvents = function() {
             }
         }
 
+
+        events = filterMonthlyEvents(events);
+
         events = orderByDays(events);
+
+        //console.log(events);
+
         var freetime = createFreetimeArr(events);
+
         console.log(freetime);
 
         var percentage = calculatePercentages(freetime);
-        console.log(percentage);
+        //console.log(percentage);
+
+        var allocation = allocateFreeTime(freetime, percentage);
+
+        console.log(convertToMiliseconds(freetime));
+        console.log(allocation);
     });
 }
 
+
+function filterMonthlyEvents(events) {
+
+    var filteredEvents = [];
+
+    var i;
+    for (i = 0; i < events.length; i ++) {
+        if (Object.keys(events[i].start)[0] == "dateTime") {
+            filteredEvents.push(events[i]);
+        }
+    }
+    return filteredEvents;
+}
+
+
 function orderByDays(events) {
+    var allEvents = [];
+
+
     //set start of current day
-    var currentStart = current;
-    currentStart = currentStart.setHours(START_DAY);
+    var currentStart = new Date(current);
+    currentStart.setHours(0);
+    currentStart.setMinutes(0);
+    currentStart.setSeconds(0);
+    currentStart.setMilliseconds(0);
 
-    var endTime = duedate;
-    //change to 24 to include final day
-    endTime = endTime.setHours(START_DAY);
-
-    //console.log(currentStart);
-
-    var difference = (duedate).getTime() - currentStart;
+    var difference = (duedate).getTime() - currentStart.getTime();
     difference = Math.ceil(difference/86400000); //convert miliseconds to days
 
     //console.log(difference);
-
-    var allEvents = [];
 
     //populate allEvents
     var j;
@@ -87,13 +114,25 @@ function orderByDays(events) {
         allEvents.push([]);
     }
 
+    //console.log(allEvents.length);
+
     var i;
     for (i = 0; i < events.length; i++) {
         var currentEvent = events[i];
         var eventDay = new Date(currentEvent.start.dateTime);
-        eventDay = eventDay.setHours(START_DAY);
-        eventDay = eventDay - currentStart;
+
+        //console.log(eventDay);
+
+        eventDay.setHours(0);
+        eventDay.setMinutes(0);
+        eventDay.setSeconds(0);
+        eventDay.setMilliseconds(0);
+
+
+
+        eventDay = eventDay.getTime() - currentStart.getTime();
         eventDay = Math.ceil(eventDay/86400000); //convert miliseconds to days
+
 
         allEvents[eventDay].push(currentEvent);
     }
@@ -103,6 +142,7 @@ function orderByDays(events) {
 
 function calculatePercentages(freetime) {
     var time = convertToMiliseconds(freetime);
+    //console.log(time);
 
     var average = calculateAverage(time);
 
@@ -110,29 +150,34 @@ function calculatePercentages(freetime) {
 
     var i;
     for (i = 0; i < time.length; i++) {
-        percentage.push(time[i] / percentage);
+        percentage.push(time[i] / average);
     }
 
     return percentage;
 }
 
-/*
 //allocates user freetime and returns array of hours needed each day
 function allocateFreeTime(freetime, percentage) {
     //convert freetime array to hours
     var milliseconds = convertToMiliseconds(freetime);
 
+    //calculate time needed to assign perday
+    var days = duedate.getTime() - current.getTime();
+    days = days / 8.64e+7;
+
+    var timeRequired = (timeNeeded) / days;
+
     //apply percentages to each day
     var allocate = [];
     var i;
-    for (i = 0; i < hours.length; i++) {
-        allocate.push(milliseconds[i] * percentage[i]);
+    for (i = 0; i < milliseconds.length; i++) {
+        allocate.push((timeRequired * percentage[i]));
     }
 
     //return new array
     return allocate;
 }
-*/
+
 function calculateAverage(time) {
     var sum = 0;
     var size = time.length;
@@ -150,48 +195,16 @@ function convertToMiliseconds(freetime) {
 
     var i;
     for (i = 0; i < freetime.length; i++) {
+        var difference_sum = 0
         var j;
         for (j = 0; j < freetime[i].length; j++) {
-            var difference = (freetime[i][j].startTime).getTime() - (freetime[i][j].endTime).getTime();
+            difference_sum += (freetime[i][j].endTime).getTime() - (freetime[i][j].startTime).getTime();
         }
+        time.push(difference_sum / 3.6e+6);
     }
 
     return time;
 }
-
-
-//****function below does the same thing as function above but does not include blank arrays
-//****to represent days with no events.
-
-/*
-//function converts one dimensional event array into 2-dimensional array based on days
-function convertToDays(events) {
-    var allEvents = [];
-    var currentDay = current.getDate();
-
-    var eventsForDay = [];
-    var i;
-    for (i = 0; i < events.length; i++) {
-        var currentEvent = events[i];
-        var eventDay = new Date(currentEvent.start.dateTime);
-        eventDay = eventDay.getDate();
-
-        if (currentDay == eventDay) {
-            eventsForDay.push(currentEvent);
-        }
-        else {
-            if (eventsForDay.length != 0) {
-                allEvents.push(eventsForDay);
-            }
-            eventsForDay = [currentEvent];
-            currentDay = eventDay;
-        }
-    }
-    allEvents.push(eventsForDay);
-
-    return allEvents;
-}
-*/
 
 
 async function GetData(url = '', token) {
@@ -209,7 +222,9 @@ chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "sign_in" ) {
         current = new Date();
-        duedate = request.duedate + 25200000; //add 7 hourse
+        duedate = request.duedate + 25200000; //add 7 hours
+        timeNeeded = request.requiredTime;
+        console.log(timeNeeded);
         //console.log(duedate);
         feeds.requestInteracticeAuthToken();
     }
@@ -226,40 +241,55 @@ Notes: NOT COMPLETE
 ========================================================*/
 
 function createFreetimeArr(eventsArr){
+  //Variables To be set Gloabally
     var gap;
-    gap = 15 * 60000;// 15 mins gap break after event in milliseconds
-    var freetime = [];
+    gap = 0 * 60000;// 15 mins gap break after event in milliseconds
+    var start_of_day = new Date();
+    start_of_day.setHours(8);
+    start_of_day.setMinutes(0);
+    start_of_day.setSeconds(0);
+    var end_of_day = new Date();
+    end_of_day.setHours(21);
+    end_of_day.setMinutes(0);
+    end_of_day.setSeconds(0);
 
+
+
+    var freetime = [];
+    //Filling in the free time array with arrays
     var i = 0;
     for(i = 0; i < eventsArr.length; i++){
       freetime.push([]);
     }
 
+    //variables used in the function
     var currentTimeOfDay;
     var numOfEvents;
     var dateObj;
     var endTime;
 
-    start_of_day = new Date();
-    start_of_day = start_of_day.setHours(8);
-
-    end_of_day = "9:00pm";
-
     var i;
     for(i = 0; i < eventsArr.length; i++){
-        currentTimeOfDay = start_of_day;
+
+
+
+        currentTimeOfDay = new Date(start_of_day);
+
         numOfEvents = eventsArr[i].length;
 
         var j;
         for(j = 0; j < numOfEvents; j++){
-              //console.log(eventsArr[i][j].start.dateTime);
+
               endTime = new Date(eventsArr[i][j].start.dateTime);//change .startTime
 
-              dateObj = {
-                  'startTime' : (new Date(currentTimeOfDay)),
-                  'endTime' : (new Date(endTime)),
-              };
-              freetime[i].push(dateObj);
+
+                dateObj = {
+                    'startTime' : (new Date(currentTimeOfDay)),
+                    'endTime' : (new Date(endTime)),
+                };
+                if((endTime.getTime() - currentTimeOfDay.getTime()) > 0)
+                freetime[i].push(dateObj);
+
 
               //Introducing X min break between events
               currentTimeOfDay = new Date(eventsArr[i][j].end.dateTime);//change .endTime
@@ -268,11 +298,18 @@ function createFreetimeArr(eventsArr){
 
         }
 
-        dateObj = {
-            'startTime' : (new Date(currentTimeOfDay)).getHours(),
-            'endTime' : end_of_day,
-        };
-        freetime[i].push(dateObj);
+
+              dateObj = {
+                  'startTime' : (new Date(currentTimeOfDay)),
+                  'endTime' : end_of_day,
+              };
+              if((end_of_day.getTime() - currentTimeOfDay.getTime()) > 0)
+              freetime[i].push(dateObj);
+
+              //Adding days in milliseconds to start and end of day value
+              start_of_day = new Date(start_of_day.getTime() + 8.64e+7);
+              end_of_day = new Date(end_of_day.getTime() + 8.64e+7);
+
     }
     return freetime;
 
