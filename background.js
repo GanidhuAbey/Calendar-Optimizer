@@ -72,8 +72,15 @@ feeds.fetchEvents = function() {
 
         var allocation = allocateFreeTime(freetime, percentage);
 
-        console.log(convertToMiliseconds(freetime));
+
+        var newEventsList = createEventList(freetime, allocation);
+
+        feeds.pushEvents(newEventsList);
+
+        //console.log(convertToMiliseconds(freetime));
         console.log(allocation);
+        console.log(newEventsList);
+        console.log("Finished");
     });
 }
 
@@ -165,7 +172,7 @@ function allocateFreeTime(freetime, percentage) {
     var days = duedate.getTime() - current.getTime();
     days = days / 8.64e+7;
 
-    var timeRequired = (timeNeeded) / days;
+    var timeRequired = (timeNeeded*3.6e+6) / days;
 
     //apply percentages to each day
     var allocate = [];
@@ -304,7 +311,7 @@ function createFreetimeArr(eventsArr){
               };
               if((end_of_day.getTime() - currentTimeOfDay.getTime()) > 0)
               freetime[i].push(dateObj);
-
+feeds.createEventList
               //Adding days in milliseconds to start and end of day value
               start_of_day = new Date(start_of_day.getTime() + 8.64e+7);
               end_of_day = new Date(end_of_day.getTime() + 8.64e+7);
@@ -329,22 +336,20 @@ Globals Used: none
 Notes: NOT COMPLETE
 ========================================================*/
 
-feeds.pushEvents = function(){
+feeds.pushEvents = function(newEventsList){
 
 
     chrome.identity.getAuthToken({interactive: false}, function(token){// Get authtoken and calls function(token)
-      var newEvents = [];
-      newEvents = feeds.createEventList();//calls createvent func with name 'Dinner Sap'
 
       var i;
-      for(i = 0; i < newEvents.length; i++){
+      for(i = 0; i < newEventsList.length; i++){
           fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', //sending a request to the google calendar api, primary user calendar
           {
               method: 'POST', // Sends the information in to the api
               headers: {
                   'Authorization': 'Bearer ' + token, //type of permissions + authorization token for the api
               },
-              body: JSON.stringify(newEvents[i]), // Data being send to the api
+              body: JSON.stringify(newEventsList[i]), // Data being send to the api
 
           })
           .then(data => console.log(data)); // log the sent request in the terminal
@@ -380,18 +385,14 @@ SideEffects: ?
 Globals Used: none
 Notes: ?
 ========================================================*/
-
-feeds.createEventList = function(){
-    var hourPer = [];//testing
-    var freetime =[];//testing
-
+function createEventList (freetime, hourPer){
+    var name = 'dueDate Event'; //has to be a parameter
     var newEvents = [];
 
     var timeInDay;
     var startTime;
     var endTime;
     var gap;
-    var name = 'dueDate Event'; //has to be a parameter
     var newEvent;
 
 
@@ -399,13 +400,12 @@ feeds.createEventList = function(){
     for(i = 0; i < freetime.length; i++){
           timeInDay = hourPer[i];
 
-          var j;
+          var j = 0;
           while(timeInDay > 0){
                 startTime = new Date(freetime[i][j].startTime);
                 endTime = new Date(freetime[i][j].endTime);
 
                 gap = endTime.getTime() - startTime.getTime();
-
 
                 if(gap <= timeInDay){
                     newEvent = feeds.createEvent(name, startTime, endTime);
@@ -418,7 +418,8 @@ feeds.createEventList = function(){
                 }
 
                 newEvents.push(newEvent);
-                timeInDay -= timeInDay - gap;
+                timeInDay -= gap;
+                j += 1;
 
           }
 
