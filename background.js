@@ -4,6 +4,7 @@ var duedate;
 var current;
 
 var timeNeeded;
+var timeOfEvent = 0;
 
 //will be set in user preferences
 var START_DAY = 0;
@@ -77,13 +78,29 @@ feeds.fetchEvents = function() {
 
         feeds.pushEvents(newEventsList);
 
-        //console.log(convertToMiliseconds(freetime));
-        //console.log(allocation);
-        //console.log(newEventsList);
+
+        var firstEvent = grabFirstEvent(newEventsList);
+
+        //check that event was returned
+        if (firstEvent != false) {
+            timeOfEvent = new Date(firstEvent.start.dateTime);
+            timeOfEvent.getTime();
+        }
+
+        chrome.runtime.sendMessage({"message": "notification", "timer": timeOfEvent})
+
         console.log("Finished");
     });
+
 }
 
+
+function grabFirstEvent(newEventsList) {
+    if (newEventsList.length > 0) {
+        return newEventsList[0];
+    }
+    return false;
+}
 
 function filterMonthlyEvents(events) {
 
@@ -228,12 +245,21 @@ chrome.runtime.onMessage.addListener(
         current = new Date();
         duedate = request.duedate + 25200000; //add 7 hours
         timeNeeded = request.requiredTime;
-        console.log(timeNeeded);
         //console.log(duedate);
         feeds.requestInteracticeAuthToken();
     }
   }
 );
+
+//TODO: send notification to user email.
+chrome.runtime.onMessage.addListener(
+  function(request, sender, sendResponse) {
+    if( request.message === "made_it" ) {
+        console.log("notification should be sent from here to user email now")
+    }
+  }
+);
+
 
 /*========================================================
 Description: Creates an two dimensional array organaized by days and in each day their Datetime obj
