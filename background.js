@@ -78,8 +78,8 @@ feeds.fetchEvents = function() {
         feeds.pushEvents(newEventsList);
 
         //console.log(convertToMiliseconds(freetime));
-        console.log(allocation);
-        console.log(newEventsList);
+        //console.log(allocation);
+        //console.log(newEventsList);
         console.log("Finished");
     });
 }
@@ -97,7 +97,6 @@ function filterMonthlyEvents(events) {
     }
     return filteredEvents;
 }
-
 
 function orderByDays(events) {
     var allEvents = [];
@@ -213,7 +212,6 @@ function convertToMiliseconds(freetime) {
     return time;
 }
 
-
 async function GetData(url = '', token) {
     const response = await fetch(url, {
         headers: {
@@ -223,7 +221,6 @@ async function GetData(url = '', token) {
     const data = await response.json();
     return data;
 }
-
 
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
@@ -243,24 +240,16 @@ Description: Creates an two dimensional array organaized by days and in each day
 Parameters:none
 Returns: freeTimeArray
 SideEffects: none
-Globals Used: ?
-Notes: NOT COMPLETE
+Globals Used: none
+Notes: I have to fix the gap option in this function
 ========================================================*/
-
 function createFreetimeArr(eventsArr){
   //Variables To be set Gloabally
     var gap;
     gap = 0 * 60000;// 15 mins gap break after event in milliseconds
+
     var start_of_day = new Date();
-    start_of_day.setHours(8);
-    start_of_day.setMinutes(0);
-    start_of_day.setSeconds(0);
-    var end_of_day = new Date();
-    end_of_day.setHours(21);
-    end_of_day.setMinutes(0);
-    end_of_day.setSeconds(0);
-
-
+    var end_of_day = createDateVar(21,0,0);
 
     var freetime = [];
     //Filling in the free time array with arrays
@@ -302,30 +291,27 @@ function createFreetimeArr(eventsArr){
               currentTimeOfDay.setTime(currentTimeOfDay.getTime() + gap);
               currentTimeOfDay = new Date(currentTimeOfDay);
 
-        }
+              }
 
 
-              dateObj = {
-                  'startTime' : (new Date(currentTimeOfDay)),
-                  'endTime' : end_of_day,
-              };
-              if((end_of_day.getTime() - currentTimeOfDay.getTime()) > 0)
+          dateObj = {
+              'startTime' : (new Date(currentTimeOfDay)),
+              'endTime' : end_of_day,
+          };
+          if((end_of_day.getTime() - currentTimeOfDay.getTime()) > 0)
               freetime[i].push(dateObj);
-feeds.createEventList
+
               //Adding days in milliseconds to start and end of day value
-              start_of_day = new Date(start_of_day.getTime() + 8.64e+7);
-              end_of_day = new Date(end_of_day.getTime() + 8.64e+7);
+          if(i == 0){
+              start_of_day = createDateVar(8,0,0);
+          }
+          start_of_day = new Date(start_of_day.getTime() + 8.64e+7);
+          end_of_day = new Date(end_of_day.getTime() + 8.64e+7);
 
     }
     return freetime;
 
 }
-
-
-
-
-
-
 
 /*========================================================
 Description: Adds an event in to the users calendar
@@ -335,7 +321,36 @@ SideEffects: Adds event to the users Calendar
 Globals Used: none
 Notes: NOT COMPLETE
 ========================================================*/
+feeds.createNewCalendar = function(newEventsList){
 
+
+    chrome.identity.getAuthToken({interactive: false}, function(token){// Get authtoken and calls function(token)
+
+      var i;
+      for(i = 0; i < newEventsList.length; i++){
+          fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', //sending a request to the google calendar api, primary user calendar
+          {
+              method: 'POST', // Sends the information in to the api
+              headers: {
+                  'Authorization': 'Bearer ' + token, //type of permissions + authorization token for the api
+              },
+              body: JSON.stringify(newEventsList[i]), // Data being send to the api
+
+          })
+          .then(data => console.log(data)); // log the sent request in the terminal
+      }
+    });
+
+}
+
+/*========================================================
+Description: Adds an event in to the users calendar
+Parameters:none
+Returns:none
+SideEffects: Adds event to the users Calendar
+Globals Used: none
+Notes: NOT COMPLETE
+========================================================*/
 feeds.pushEvents = function(newEventsList){
 
 
@@ -366,7 +381,6 @@ SideEffects: none
 Globals Used: duedate
 Notes: *Just a testing function for right now
 ========================================================*/
-
 feeds.createEvent = function(summary = '', startDate, endDate){
     var newEvent = {// Calendar api event: https://developers.google.com/calendar/v3/reference/events#resource-representations
       'summary' : summary,
@@ -429,14 +443,9 @@ function createEventList (freetime, hourPer){
 
 }
 
-
-
-
-
 /*========================================================
 Helper Functions
 ========================================================*/
-
 function populateArr(length, type){
   var arr = [];
   var i = 0;
@@ -445,4 +454,19 @@ function populateArr(length, type){
   }
   return arr;
 
+}
+function createDateVar(hours, minutes, seconds){
+    date = new Date();
+
+
+
+
+    if(hours != 'NaN')
+    date.setHours(hours);
+    if(minutes != 'NaN')
+    date.setMinutes(minutes);
+    if(seconds != 'NaN')
+    date.setSeconds(seconds);
+
+    return date;
 }
