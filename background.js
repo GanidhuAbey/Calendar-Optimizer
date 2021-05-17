@@ -62,20 +62,28 @@ feeds.fetchEvents = function() {
 
         events = orderByDays(events);
 
-        console.log(events);
+        console.log("events", events);
 
         var freetime = createFreetimeArr(events);
 
-        console.log(freetime);
+        console.log("freetime", freetime);
 
         var percentage = calculatePercentages(freetime);
         //console.log(percentage);
 
+        console.log("time", timeNeeded);
         var allocation = allocateFreeTime(freetime, percentage);
-        console.log(allocation);
+        console.log("allocation", allocation);
+
+        var sum = 0;
+        var k;
+        for (k = 0; k < allocation.length; k++) {
+            sum += allocation[k];
+        }
+        console.log("sum:", sum);
 
         var newEventsList = createEventList(freetime, allocation);
-        console.log(newEventsList);
+        console.log("newEventsList", newEventsList);
         //feeds.pushEvents(newEventsList);
 
         /*
@@ -185,11 +193,7 @@ function allocateFreeTime(freetime, percentage) {
     //convert freetime array to hours
     var milliseconds = convertToMiliseconds(freetime);
 
-    //calculate time needed to assign perday
-    var days = duedate.getTime() - current.getTime();
-    days = days / 8.64e+7;
-
-    var timeRequired = (timeNeeded*3.6e+6) / days;
+    var timeRequired = (timeNeeded) / milliseconds.length;
 
     //apply percentages to each day
     var allocate = [];
@@ -469,7 +473,7 @@ function createEventList (freetime, hourPer){
     var i;
     for(i = 0; i < freetime.length; i++){
           timeInDay = hourPer[i];
-          
+
 
           var j = 0;
           while(timeInDay > timeOfEvent){

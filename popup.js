@@ -5,7 +5,7 @@ var currentTime = new Date();
 var notificationTime = 0;
 
 document.getElementById('button').addEventListener("click", function() {
-    window.setInterval(notificationCheck, 5000);
+    //window.setInterval(notificationCheck, 5000);
     chrome.runtime.sendMessage({"message": "sign_in", "duedate": Date.parse(document.getElementById('due').value), "requiredTime": document.getElementById('timeNeeded').value});
 
 });
@@ -19,9 +19,11 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
+/*
 function notificationCheck() {
     if (currentTime.getTime() == notificationTime.getTime()) {
         chrome.runtime.sendMessage({"message": "made_it", "notif": notificationTime});
     }
     currentTime = new Date();
 }
+*/
