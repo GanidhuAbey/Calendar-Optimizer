@@ -1,6 +1,6 @@
 //chrome.identity.getAuthToken({ interactive: true });
 
-var duedate;
+var duedate;//DueDate ENDS at 5 pm of that Day need to fix it
 var current;
 
 var timeNeeded;
@@ -61,11 +61,11 @@ feeds.fetchEvents = function() {
 
         events = orderByDays(events);
 
-        //console.log(events);
+        console.log(events);
 
         var freetime = createFreetimeArr(events);
 
-        console.log(freetime);
+      //  console.log(freetime);
 
         var percentage = calculatePercentages(freetime);
         //console.log(percentage);
@@ -75,11 +75,11 @@ feeds.fetchEvents = function() {
 
         var newEventsList = createEventList(freetime, allocation);
 
-        feeds.pushEvents(newEventsList);
+        //feeds.pushEvents(newEventsList);
 
         //console.log(convertToMiliseconds(freetime));
-        //console.log(allocation);
-        //console.log(newEventsList);
+
+        console.log(newEventsList);
         console.log("Finished");
     });
 }
@@ -241,15 +241,20 @@ Parameters:none
 Returns: freeTimeArray
 SideEffects: none
 Globals Used: none
-Notes: I have to fix the gap option in this function
+Notes:- I have to fix the gap option in this function
+      - Need to add an option where on the day of adding an event, how much of a gap there should be till assigned events on that day
+      - Fix the filling array helper Function
+      - make gap, start_of_day, end_of_day global variables
 ========================================================*/
 function createFreetimeArr(eventsArr){
-  //Variables To be set Gloabally
-    var gap;
-    gap = 0 * 60000;// 15 mins gap break after event in milliseconds
 
+    //Variables To be set Gloabally
+    var gap; // Take the abs of gap
+    gap = 15 * 60000;// 15 mins gap break after event in milliseconds
     var start_of_day = new Date();
     var end_of_day = createDateVar(21,0,0);
+
+
 
     var freetime = [];
     //Filling in the free time array with arrays
@@ -257,6 +262,7 @@ function createFreetimeArr(eventsArr){
     for(i = 0; i < eventsArr.length; i++){
       freetime.push([]);
     }
+
 
     //variables used in the function
     var currentTimeOfDay;
@@ -267,16 +273,15 @@ function createFreetimeArr(eventsArr){
     var i;
     for(i = 0; i < eventsArr.length; i++){
 
-
         currentTimeOfDay = new Date(start_of_day);
-
         numOfEvents = eventsArr[i].length;
 
         var j;
         for(j = 0; j < numOfEvents; j++){
 
               endTime = new Date(eventsArr[i][j].start.dateTime);//change .startTime
-
+              endTime.setTime(endTime.getTime() - gap);
+              endTime = new Date(endTime); // to store as a date obj(COULD BE REMOVED)
 
                 dateObj = {
                     'startTime' : (new Date(currentTimeOfDay)),
@@ -285,14 +290,11 @@ function createFreetimeArr(eventsArr){
                 if((endTime.getTime() - currentTimeOfDay.getTime()) > 0)
                 freetime[i].push(dateObj);
 
-
               //Introducing X min break between events
               currentTimeOfDay = new Date(eventsArr[i][j].end.dateTime);//change .endTime
               currentTimeOfDay.setTime(currentTimeOfDay.getTime() + gap);
-              currentTimeOfDay = new Date(currentTimeOfDay);
-
+              currentTimeOfDay = new Date(currentTimeOfDay); // to store as a date obj(COULD BE REMOVED)
               }
-
 
           dateObj = {
               'startTime' : (new Date(currentTimeOfDay)),
@@ -301,16 +303,15 @@ function createFreetimeArr(eventsArr){
           if((end_of_day.getTime() - currentTimeOfDay.getTime()) > 0)
               freetime[i].push(dateObj);
 
-              //Adding days in milliseconds to start and end of day value
+          //Adding days in milliseconds to start and end of day value
           if(i == 0){
-              start_of_day = createDateVar(8,0,0);
+              start_of_day = createDateVar(8,0,0); // this should be set using a global variable
           }
-          start_of_day = new Date(start_of_day.getTime() + 8.64e+7);
+          start_of_day = new Date(start_of_day.getTime() + 8.64e+7); // adding a day to start_of_day
           end_of_day = new Date(end_of_day.getTime() + 8.64e+7);
 
     }
     return freetime;
-
 }
 
 /*========================================================
@@ -319,7 +320,7 @@ Parameters:none
 Returns:none
 SideEffects: Adds event to the users Calendar
 Globals Used: none
-Notes: NOT COMPLETE
+Notes: Need to figure how to push a entire list
 ========================================================*/
 feeds.createNewCalendar = function(newEventsList){
 
@@ -392,6 +393,27 @@ feeds.createEvent = function(summary = '', startDate, endDate){
 }
 
 /*========================================================
+Description: Creates a new calendar event.
+Parameters: Name of the event, startDate(Date Obj), timeOfEvent(date in milliseconds)
+Returns: An Event variable
+SideEffects: none
+Globals Used: duedate
+Notes: *Just a testing function for right now
+========================================================*/
+feeds.createGapEvent = function(summary = '', startDate, timeOfEvent){
+
+    endDate = new Date(startDate.getTime() + timeOfEvent); //iff timeOfEvent is in miliseconds
+
+    var newEvent = {// Calendar api event: https://developers.google.com/calendar/v3/reference/events#resource-representations
+      'summary' : summary,
+      'start': {'dateTime' : startDate.toISOString()},
+      'end': {'dateTime' : endDate.toISOString()},
+    };
+    return newEvent;
+
+}
+
+/*========================================================
 Description: Creates a  list of calendar events.
 Parameters: ?
 Returns: List of Events
@@ -400,39 +422,46 @@ Globals Used: none
 Notes: ?
 ========================================================*/
 function createEventList (freetime, hourPer){
-    var name = 'dueDate Event'; //has to be a parameter
-    var newEvents = [];
+    //Need to be parameters/globals:
+    var name = 'Test Event'; // name of the event
+    var timeOfEvent = 30 * 60000; // 30 mins in milliseconds
 
+    var newEvents = [];
+    var remainder = 0;
+    var gap;
     var timeInDay;
     var startTime;
     var endTime;
-    var gap;
+
     var newEvent;
+
+
+
 
 
     var i;
     for(i = 0; i < freetime.length; i++){
           timeInDay = hourPer[i];
+          console.log(hourPer[i]/3.6e+6);
 
           var j = 0;
-          while(timeInDay > 0){
+          while(timeInDay > timeOfEvent){
                 startTime = new Date(freetime[i][j].startTime);
                 endTime = new Date(freetime[i][j].endTime);
 
                 gap = endTime.getTime() - startTime.getTime();
 
-                if(gap <= timeInDay){
-                    newEvent = feeds.createEvent(name, startTime, endTime);
-                }
-                else{
-                    endTime = new Date(startTime.getTime() + timeInDay);
-                    newEvent = feeds.createEvent(name, startTime, endTime);
-                    gap = timeInDay
+                while((gap - timeOfEvent) >= 0){
+                    gap -= timeOfEvent;
 
+                    newEvent = feeds.createGapEvent(name, startTime, timeOfEvent);
+                    newEvents.push(newEvent);
+                    startTime = new Date(startTime.getTime() + timeOfEvent);
+
+                    timeInDay -= timeOfEvent;
                 }
 
-                newEvents.push(newEvent);
-                timeInDay -= gap;
+                remainder += gap;
                 j += 1;
 
           }
@@ -447,6 +476,7 @@ function createEventList (freetime, hourPer){
 Helper Functions
 ========================================================*/
 function populateArr(length, type){
+
   var arr = [];
   var i = 0;
   for(i = 0; i < length; i++){
@@ -457,10 +487,6 @@ function populateArr(length, type){
 }
 function createDateVar(hours, minutes, seconds){
     date = new Date();
-
-
-
-
     if(hours != 'NaN')
     date.setHours(hours);
     if(minutes != 'NaN')
