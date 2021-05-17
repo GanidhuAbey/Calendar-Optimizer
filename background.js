@@ -75,16 +75,9 @@ feeds.fetchEvents = function() {
         var allocation = allocateFreeTime(freetime, percentage);
         console.log("allocation", allocation);
 
-        var sum = 0;
-        var k;
-        for (k = 0; k < allocation.length; k++) {
-            sum += allocation[k];
-        }
-        console.log("sum:", sum);
-
         var newEventsList = createEventList(freetime, allocation);
         console.log("newEventsList", newEventsList);
-        //feeds.pushEvents(newEventsList);
+        feeds.pushEvents(newEventsList);
 
         /*
         var firstEvent = grabFirstEvent(newEventsList);
@@ -193,7 +186,7 @@ function allocateFreeTime(freetime, percentage) {
     //convert freetime array to hours
     var milliseconds = convertToMiliseconds(freetime);
 
-    var timeRequired = (timeNeeded) / milliseconds.length;
+    var timeRequired = (timeNeeded * 3.6e+6) / milliseconds.length;
 
     //apply percentages to each day
     var allocate = [];
