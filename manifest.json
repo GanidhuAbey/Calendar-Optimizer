@@ -15,7 +15,7 @@
         ]
     },
 
-    "permissions": ["storage", "activeTab", "scripting", "identity"],
+    "permissions": ["storage", "activeTab", "scripting", "identity", "notifications"],
 
     "action": {
         "default_popup": "popup.html",

@@ -4,8 +4,10 @@
 var currentTime = new Date();
 var notificationTime = 0;
 
+var nextNotificationTime = 5000;
+
 document.getElementById('button').addEventListener("click", function() {
-    //window.setInterval(notificationCheck, 5000);
+    notificationCheck();
     chrome.runtime.sendMessage({"message": "sign_in", "duedate": Date.parse(document.getElementById('due').value), "requiredTime": document.getElementById('timeNeeded').value});
 
 });
@@ -15,15 +17,21 @@ chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "notification" ) {
         notificationTime = new Date(request.timer);
+        notificationCheck();
     }
   }
 );
 
-/*
+
 function notificationCheck() {
-    if (currentTime.getTime() == notificationTime.getTime()) {
+    if (currentTime.getTime() >= notificationTime.getTime()) {
         chrome.runtime.sendMessage({"message": "made_it", "notif": notificationTime});
     }
+    else {
+        //this should now only run the function as many times as necasarry.
+        nextNotificationTime = notificationTime.getTime() - currentTime.getTime();
+    }
     currentTime = new Date();
+
+    window.setInterval(notificationCheck, nextNotificationTime);
 }
-*/

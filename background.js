@@ -1,17 +1,20 @@
 //chrome.identity.getAuthToken({ interactive: true });
 
+var allDeadLines = [];
+var missedEvents = [];
+
 var duedate;//DueDate ENDS at 5 pm of that Day need to fix it
 var current;
 
 var timeNeeded;
+
 var timeOfEvent = 0;
+var recentEvent;
 
 //will be set in user preferences
 var START_DAY = 0;
 
 var feeds = {};
-
-var counter = 0;
 
 feeds.CALENDAR_LIST_API_URL_ = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 feeds.CALENDAR_EVENTS_API_URL_ = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events?'
@@ -29,6 +32,16 @@ feeds.requestInteracticeAuthToken = function() {
     })
 }
 
+
+/*========================================================
+Description: central function that handles creating the deadline events and posting
+            it to google api.
+Parameters: none
+Returns: none
+SideEffects: none
+Globals Used: duedate, current, timeNeeded, timeOfEvent, recentEvent, feeds
+Notes:- none
+========================================================*/
 feeds.fetchEvents = function() {
     chrome.identity.getAuthToken({interactive: false}, async function(token) {
         var calList = [];
@@ -77,26 +90,37 @@ feeds.fetchEvents = function() {
 
         var newEventsList = createEventList(freetime, allocation);
         console.log("newEventsList", newEventsList);
-        feeds.pushEvents(newEventsList);
+        //feeds.pushEvents(newEventsList);
 
-        /*
         var firstEvent = grabFirstEvent(newEventsList);
 
         //check that event was returned
         if (firstEvent != false) {
-            timeOfEvent = new Date(firstEvent.start.dateTime);
-            timeOfEvent.getTime();
+            var eventTime = (new Date(firstEvent.start.dateTime)).getTime();
+            if (timeOfEvent == 0 || timeOfEvent > eventTime) {
+                timeOfEvent = eventTime;
+                recentEvent = firstEvent
+            }
         }
 
-        chrome.runtime.sendMessage({"message": "notification", "timer": timeOfEvent})
-        */
+        chrome.runtime.sendMessage({"message": "notification", "timer": 1})
 
+        allDeadLines.push(newEventsList);
         console.log("Finished");
     });
 
 }
 
-
+/*========================================================
+Description: filters events to remove events without a start or end time (these
+            would be events that span an entire day like birthday events)
+Parameters: newEventsList (1-dimensional array of all the new deadline events added)
+Returns: newEventsList[0] or false (returns the first element in the given list
+                                    or false if that event does not exist)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function grabFirstEvent(newEventsList) {
     if (newEventsList.length > 0) {
         return newEventsList[0];
@@ -104,6 +128,17 @@ function grabFirstEvent(newEventsList) {
     return false;
 }
 
+/*========================================================
+Description: filters events to remove events without a start or end time (these
+            would be events that span an entire day like birthday events)
+Parameters: events (1- dimensional array presenting all the events from users
+                    current time to the due date the user set.)
+Returns: filteredEvents (1-dimensional array that filters out events without a
+                        start or end time.)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function filterMonthlyEvents(events) {
 
     var filteredEvents = [];
@@ -117,6 +152,16 @@ function filterMonthlyEvents(events) {
     return filteredEvents;
 }
 
+/*========================================================
+Description: orders the list of events into individual days
+Parameters: events (1-dimensional array presenting all the events from users
+                    current time to the due date the user set.)
+Returns: allEvents (2-dimensional array that organizes the events into individual
+                    days)
+SideEffects: none
+Globals Used: duedate, current,
+Notes:- none
+========================================================*/
 function orderByDays(events) {
     var allEvents = [];
 
@@ -165,6 +210,14 @@ function orderByDays(events) {
     return allEvents;
 }
 
+/*========================================================
+Description: calculates the amount of freetime a user has in days as a percentage
+Parameters: freetime (2-dimensional array of freetime slots in users calendar per day)
+Returns: percentage (1-dimensional array presenting amount of freetime in day as %)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function calculatePercentages(freetime) {
     var time = convertToMiliseconds(freetime);
     //console.log(time);
@@ -181,7 +234,16 @@ function calculatePercentages(freetime) {
     return percentage;
 }
 
-//allocates user freetime and returns array of hours needed each day
+/*========================================================
+Description: allocates user freetime and returns array of hours needed each day
+Parameters: freetime (2-dimensional array of freetime slots in users calendar per day)
+            percentage (1-dimensional array presenting amount of freetime in day as %)
+Returns: allocate (the amount of time that needs to be allocated for the deadline
+                  event in users calendar)
+SideEffects: none
+Globals Used: timeNeeded
+Notes:- none
+========================================================*/
 function allocateFreeTime(freetime, percentage) {
     //convert freetime array to hours
     var milliseconds = convertToMiliseconds(freetime);
@@ -199,6 +261,16 @@ function allocateFreeTime(freetime, percentage) {
     return allocate;
 }
 
+
+
+/*========================================================
+Description: calculate the average value from an array of numbers. (sum array and divide by length)
+Parameters: time (1-dimensional array representing total freetime in day in milliseconds)
+Returns: sum / size (average of the given array)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function calculateAverage(time) {
     var sum = 0;
     var size = time.length;
@@ -210,7 +282,14 @@ function calculateAverage(time) {
     return sum / size;
 }
 
-//converts freetime array to hours
+/*========================================================
+Description: converts the time slots from freetime array to miliseconds
+Parameters: freetime (2-dimensional array of freetime slots in users calendar per day)
+Returns: time (1-dimensional array representing total freetime in day in milliseconds)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function convertToMiliseconds(freetime) {
     var time = [];
 
@@ -227,6 +306,17 @@ function convertToMiliseconds(freetime) {
     return time;
 }
 
+
+/*========================================================
+Description: asynchronus function to make fetch request,
+             currently only handles GET request
+Parameters:url (a url that the fetch request is making a request to)
+           token (the required google api token given from user)
+Returns: none
+SideEffects: none
+Globals Used: none
+Notes:- need to implement a more generalized version allowing for POST requests
+========================================================*/
 async function GetData(url = '', token) {
     const response = await fetch(url, {
         headers: {
@@ -237,6 +327,16 @@ async function GetData(url = '', token) {
     return data;
 }
 
+
+
+/*========================================================
+Description: listens for user request to create new deadline events.
+Parameters:none
+Returns: none
+SideEffects: none
+Globals Used: current, duedate, timeNeeded
+Notes:- none
+========================================================*/
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "sign_in" ) {
@@ -249,14 +349,77 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-//TODO: send notification to user email.
+
+/*========================================================
+Description: listener that waits for popup.js to ask for a notification.
+             (popup.js asks for notification only when event is overlappying with
+             users current time.)
+Parameters:none
+Returns: none
+SideEffects: none
+Globals Used: none
+Notes:- function does very little maybe possible to merge with sendNotificationToUser()
+========================================================*/
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "made_it" ) {
-        console.log("notification should be sent from here to user email now")
+        //console.log("sss");
+        sendNotificationToUser();
     }
   }
 );
+
+
+
+/*========================================================
+Description: creates a notification for user
+Parameters:none
+Returns: none
+SideEffects: none
+Globals Used: recentEvent
+Notes:- maybe add another button to reschedule the event
+========================================================*/
+function sendNotificationToUser() {
+    console.log("sending notification...");
+
+    const title = "Event: ".concat(recentEvent.summary);
+    const options = {
+      body: 'Mark this event as in progress?',
+      actions: [
+          {
+              action: 'complete-event',
+              title: 'Working on Event...'
+          },
+          {
+              action: 'ignore-event',
+              title: 'Ignore Event'
+          }
+      ]
+    };
+    registration.showNotification(title, options);
+}
+
+/*========================================================
+Description: listens for a response to desktop notification
+Parameters:none
+Returns: none
+SideEffects: none
+Globals Used: recentEvent
+Notes:- do something when user ignores event (maybe resechdule the event for later)
+========================================================*/
+self.addEventListener('notificationclick', function(event) {
+  const clickedNotification = event.notification;
+  clickedNotification.close();
+
+  // Do something as the result of the notification click
+  switch (event.action) {
+    case 'complete-event':
+        break;
+    case 'ignore-event':
+        missedEvents.push(recentEvent);
+        break;
+  }
+});
 
 
 /*========================================================
