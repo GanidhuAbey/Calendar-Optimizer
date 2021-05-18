@@ -6,10 +6,12 @@ var missedEvents = [];
 var duedate;//DueDate ENDS at 5 pm of that Day need to fix it
 var current;
 
+//in hours
 var timeNeeded;
 
 var timeOfEvent = 0;
-var recentEvent;
+
+var notifEvent;
 
 //will be set in user preferences
 var START_DAY = 0;
@@ -92,18 +94,8 @@ feeds.fetchEvents = function() {
         console.log("newEventsList", newEventsList);
         //feeds.pushEvents(newEventsList);
 
-        var firstEvent = grabFirstEvent(newEventsList);
+        makeNewNotif(newEventsList[newEventsList.length - 1]);
 
-        //check that event was returned
-        if (firstEvent != false) {
-            var eventTime = (new Date(firstEvent.start.dateTime)).getTime();
-            if (timeOfEvent == 0 || timeOfEvent > eventTime) {
-                timeOfEvent = eventTime;
-                recentEvent = firstEvent
-            }
-        }
-
-        chrome.runtime.sendMessage({"message": "notification", "timer": 1})
 
         allDeadLines.push(newEventsList);
         console.log("Finished");
@@ -363,8 +355,8 @@ Notes:- function does very little maybe possible to merge with sendNotificationT
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "made_it" ) {
-        //console.log("sss");
-        sendNotificationToUser();
+        console.log("notification has been requested");
+        sendNotificationToUser(request.notif);
     }
   }
 );
@@ -379,8 +371,10 @@ SideEffects: none
 Globals Used: recentEvent
 Notes:- maybe add another button to reschedule the event
 ========================================================*/
-function sendNotificationToUser() {
+function sendNotificationToUser(recentEvent) {
     console.log("sending notification...");
+
+
 
     const title = "Event: ".concat(recentEvent.summary);
     const options = {
@@ -396,6 +390,8 @@ function sendNotificationToUser() {
           }
       ]
     };
+    notifEvent = recentEvent;
+
     registration.showNotification(title, options);
 }
 
@@ -414,12 +410,96 @@ self.addEventListener('notificationclick', function(event) {
   // Do something as the result of the notification click
   switch (event.action) {
     case 'complete-event':
+        makeNewNotif(notifEvent);
         break;
     case 'ignore-event':
-        missedEvents.push(recentEvent);
+        makeNewNotif(notifEvent);
         break;
   }
 });
+
+
+/*========================================================
+Description: grabs the most recent event coming up for the user and makes it the
+             event that the notification system will wait on.
+Parameters: none
+Returns: newRecentEvent (new current event for the notification system to wait on)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
+
+function makeNewNotif(recentEvent) {
+    chrome.identity.getAuthToken({ interactive: false }, async function(token) {
+        //TODO: change method of grabbing time so its not dependent on users local
+        //      time, maybe change all times to a single timezone so they are all same
+        var currentTime = new Date();
+
+        var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?';
+        var params = {orderBy: "startTime", singleEvents: true, timeMin: currentTime.toISOString()};
+
+        url = url + new URLSearchParams(params);
+
+        var eventData = await GetData(url, token);
+        var newEvent;
+
+        var cont = true;
+        var k = 0;
+
+        //TODO: add case for when their is no events in eventData.
+
+        while (cont) {
+            if (eventData.items[k].start.dateTime == recentEvent.start.dateTime) {
+                k++
+            }
+            else {
+                newEvent = eventData.items[k];
+                cont = false;
+            }
+        }
+        console.log(newEvent.summary);
+        //chrome.runtime.sendMessage("message": "notification", "event": recentEvent);
+        chrome.runtime.sendMessage({"message": "notification", "event": newEvent});
+    });
+}
+
+/*
+function updateNotification(recentEvent) {
+    chrome.identity.getAuthToken({ interactive: false }, async function(token) {
+        var currentTime = new Date();
+
+        //TODO: currently grabbing events from primary, change this to all or the select deadline
+        //event calendars later
+        var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?';
+        var params = {orderBy: "startTime", singleEvents: true, timeMin: currentTime.getTime()};
+
+        url = url + new URLSearchParams(params);
+
+        var eventData = await GetDate(url, token);
+        var newEvent;
+
+
+        var cont = true;
+        var k = 0;
+        //in theory i should be able to just grab the event but just in case,
+        //i will do this check
+
+        while (cont) {
+            if (eventData.items[k].start.dateTime == recentEvent.start.dateTime) {
+                k++
+            }
+            else {
+                newEvent = eventData.items[k];
+                cont = false;
+            }
+        }
+
+
+        chrome.runtime.sendMessage("message": "notification", "event": recentEvent);
+    });
+}
+*/
+
 
 
 /*========================================================

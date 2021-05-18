@@ -2,21 +2,27 @@
 //to the storage, where it will be acessed by the background.js file.
 
 var currentTime = new Date();
-var notificationTime = 0;
+var notificationTime;
+var notificationEvent;
 
-var nextNotificationTime = 5000;
+var show_notifications = false;
+
+var nextNotificationTime = 3.6e+6;
 
 document.getElementById('button').addEventListener("click", function() {
-    notificationCheck();
     chrome.runtime.sendMessage({"message": "sign_in", "duedate": Date.parse(document.getElementById('due').value), "requiredTime": document.getElementById('timeNeeded').value});
-
 });
 //Date.parse(document.getElementById('due').value)
 
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "notification" ) {
-        notificationTime = new Date(request.timer);
+        notificationEvent = request.event;
+
+        nextNotificationTime = 3.6e+6;
+
+        notificationTime = new Date(notificationEvent.start.dateTime);
+        show_notifications = true;
         notificationCheck();
     }
   }
@@ -24,12 +30,13 @@ chrome.runtime.onMessage.addListener(
 
 
 function notificationCheck() {
-    if (currentTime.getTime() >= notificationTime.getTime()) {
-        chrome.runtime.sendMessage({"message": "made_it", "notif": notificationTime});
+    if (show_notifications && currentTime.getTime() >= notificationTime.getTime()) {
+        alert("notification recieved")
+        chrome.runtime.sendMessage({"message": "made_it", "notif": notificationEvent});
+        show_notifications = false;
     }
-    else {
-        //this should now only run the function as many times as necasarry.
-        nextNotificationTime = notificationTime.getTime() - currentTime.getTime();
+    if ((notificationTime.getTime() - currentTime.getTime()) < nextNotificationTime) {
+        nextNotificationTime = notificationTime.getTime() - currentTime.getTime() + 1000;
     }
     currentTime = new Date();
 
