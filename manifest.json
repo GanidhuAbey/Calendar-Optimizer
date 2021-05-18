@@ -4,6 +4,15 @@
     "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqHqhc/rU0Cs5PL0kzvHwob6Cg4aeOlGsCmEK5ERRYz729oeyHZumyTKJBZqh3hCIId7Y2xCxyQa2pbHby7QtE2/7K7Nz3JVAAyiobuEtWiInZ0hg0dTpEbzZHzb/HV8RWydq4vN3PwOvoxeKDl4jBTApK5I8BPX1RfbqL/7Oov3rayafBrtMy5ADr+Qn+4VJegDA1HeC5Lr4KEWw5HcO+wrTFdeT/iUTE6MTZSls08YUwcJ8Dg2m9UcI+vgkwG9TviSuntVZMvlkisd+U6A693TjpWpFijWVMngGI1S/0ZoDZLSypx72H5fTB1bE7CmOyPuQc6fzoyvZqKr4SPu+KQIDAQAB",
     "version": "1.0",
 
+    "content_scripts": [
+          {
+            "matches": [
+              "<all_urls>"
+            ],
+            "js": ["content.js"]
+          }
+    ],
+
     "background": {
         "service_worker": "background.js"
     },
@@ -15,7 +24,7 @@
         ]
     },
 
-    "permissions": ["storage", "activeTab", "scripting", "identity", "notifications"],
+    "permissions": ["storage", "activeTab", "scripting", "identity", "notifications", "alarms"],
 
     "action": {
         "default_popup": "popup.html",

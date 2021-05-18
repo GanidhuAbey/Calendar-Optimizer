@@ -1,4 +1,4 @@
-//chrome.identity.getAuthToken({ interactive: true });
+chrome.alarms.create({ delayInMinutes: 1, periodInMinutes: 1 });
 
 var allDeadLines = [];
 var missedEvents = [];
@@ -12,6 +12,9 @@ var timeNeeded;
 var timeOfEvent = 0;
 
 var notifEvent;
+
+var newNotification = false;
+var newEvent;
 
 //will be set in user preferences
 var START_DAY = 0;
@@ -418,6 +421,14 @@ self.addEventListener('notificationclick', function(event) {
   }
 });
 
+chrome.alarms.onAlarm.addListener(() => {
+    var currentTime = new Date();
+    if (newNotification && currentTime.getTime() >= (new Date(newEvent.start.dateTime)).getTime()) {
+        sendNotificationToUser(newEvent);
+        newNotification = false;
+    }
+});
+
 
 /*========================================================
 Description: grabs the most recent event coming up for the user and makes it the
@@ -441,7 +452,7 @@ function makeNewNotif(recentEvent) {
         url = url + new URLSearchParams(params);
 
         var eventData = await GetData(url, token);
-        var newEvent;
+        newEvent;
 
         var cont = true;
         var k = 0;
@@ -457,9 +468,10 @@ function makeNewNotif(recentEvent) {
                 cont = false;
             }
         }
-        console.log(newEvent.summary);
+        //console.log(newEvent.summary);
         //chrome.runtime.sendMessage("message": "notification", "event": recentEvent);
-        chrome.runtime.sendMessage({"message": "notification", "event": newEvent});
+        //chrome.runtime.sendMessage({"message": "notification", "event": newEvent});
+        newNotification = true;
     });
 }
 
