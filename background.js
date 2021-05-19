@@ -85,7 +85,7 @@ feeds.fetchEvents = function() {
 
         console.log("events", events);
 
-        var freetime = createFreetimeArr(events);
+        var freetime = createFreetimeArr(events, new Date());
 
         console.log("freetime", freetime);
 
@@ -452,7 +452,7 @@ function rescheduleEvent(recentEvent) {
     day.setSeconds(0);
     day.setMilliseconds(0);
 
-    //day = new Date(day.getTime() + DAY_IN_MILLISECONDS);
+    day = new Date(day.getTime() + DAY_IN_MILLISECONDS);
 
 
     //calculate total time event takes
@@ -483,7 +483,11 @@ function rescheduleEvent(recentEvent) {
             //TODO: check for empty eventData (should already be covered though)
 
             //calculate freetime of that day
-            var newFreeTime = createFreetimeArr([eventsInDay]);
+
+            //TODO: add user preferences, and change the '8' with whatever users
+            //      start time is.
+            var startOfNextDay = day.setHours(8);
+            var newFreeTime = createFreetimeArr([eventsInDay], new Date(startOfNextDay));
             //console.log("time gaps between events: ", newFreeTime);
 
             //iterate through time gaps, if freetime > event time, push event into freetime
@@ -491,8 +495,8 @@ function rescheduleEvent(recentEvent) {
             for (i = 0; i < newFreeTime[0].length; i++) {
                 var difference = (newFreeTime[0][i].endTime).getTime() - (newFreeTime[0][i].startTime).getTime();
 
-                if (difference >= (eventTime + 1.8e+6)) {
-                    var startOfTime = new Date((newFreeTime[0][i].startTime).getTime() + 900000);
+                if (difference >= eventTime) {
+                    var startOfTime = new Date((newFreeTime[0][i].startTime).getTime());
                     var endOfTime = new Date(startOfTime.getTime() + eventTime);
 
                     console.log("where event is scheduled: ", startOfTime, endOfTime);
@@ -594,12 +598,12 @@ Notes:- I have to fix the gap option in this function
       - Fix the filling array helper Function
       - make gap, start_of_day, end_of_day global variables
 ========================================================*/
-function createFreetimeArr(eventsArr){
+function createFreetimeArr(eventsArr, startDate){
 
     //Variables To be set Gloabally
     var gap; // Take the abs of gap
     gap = 15 * 60000;// 15 mins gap break after event in milliseconds
-    var start_of_day = new Date();
+    var start_of_day = startDate;
     var end_of_day = createDateVar(21,0,0);
 
 
