@@ -1,4 +1,7 @@
-chrome.alarms.create({ delayInMinutes: 1, periodInMinutes: 1 });
+chrome.alarms.create({ delayInMinutes: 0, periodInMinutes: 1 });
+
+const DAY_IN_MILLISECONDS = 8.64e+7;
+
 
 var allDeadLines = [];
 var missedEvents = [];
@@ -78,7 +81,7 @@ feeds.fetchEvents = function() {
 
         events = filterMonthlyEvents(events);
 
-        events = orderByDays(events);
+        events = orderByDays(events, duedate);
 
         console.log("events", events);
 
@@ -157,7 +160,7 @@ SideEffects: none
 Globals Used: duedate, current,
 Notes:- none
 ========================================================*/
-function orderByDays(events) {
+function orderByDays(events, endDate) {
     var allEvents = [];
 
 
@@ -168,7 +171,7 @@ function orderByDays(events) {
     currentStart.setSeconds(0);
     currentStart.setMilliseconds(0);
 
-    var difference = (duedate).getTime() - currentStart.getTime();
+    var difference = (endDate).getTime() - currentStart.getTime();
     difference = Math.ceil(difference/86400000); //convert miliseconds to days
 
     //console.log(difference);
@@ -388,8 +391,8 @@ function sendNotificationToUser(recentEvent) {
               title: 'Working on Event...'
           },
           {
-              action: 'ignore-event',
-              title: 'Ignore Event'
+              action: 'reschedule',
+              title: 'Reschedule Event'
           }
       ]
     };
@@ -415,8 +418,9 @@ self.addEventListener('notificationclick', function(event) {
     case 'complete-event':
         makeNewNotif(notifEvent);
         break;
-    case 'ignore-event':
+    case 'reschedule':
         makeNewNotif(notifEvent);
+        rescheduleEvent(notifEvent);
         break;
   }
 });
@@ -429,6 +433,103 @@ chrome.alarms.onAlarm.addListener(() => {
     }
 });
 
+/*========================================================
+Description: reschedule given event to next available time slot and delete event
+             from current slot.
+Parameters: recentEvent
+Returns: none
+SideEffects: none
+Globals Used: recentEvent
+Notes:- TODO: have to schedule events from the next day onwards, but the
+              createFreetimeArr() does not have functionality for choosing the
+              start time for when the time gaps are calculated.
+========================================================*/
+function rescheduleEvent(recentEvent) {
+    //grab current day
+    var day = new Date();
+    day.setHours(0);
+    day.setMinutes(0);
+    day.setSeconds(0);
+    day.setMilliseconds(0);
+
+    //day = new Date(day.getTime() + DAY_IN_MILLISECONDS);
+
+
+    //calculate total time event takes
+    var eventTime = (new Date(recentEvent.end.dateTime)).getTime() - (new Date(recentEvent.start.dateTime)).getTime();
+
+    chrome.identity.getAuthToken({ interactive: false }, async function(token) {
+        //iterate through each day one at a time till solution is found
+        var cont = true;
+        while (cont) {
+            //add 1 day to current day to get next day.
+            var newDay = day.getTime() + DAY_IN_MILLISECONDS;
+
+            //console.log("start of day its searching", day);
+            //console.log("end of day its searching: ", new Date(newDay));
+
+            //make fetch call for that day.
+            //TODO: change to grab events from all user calendars
+            var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?';
+            var params = {orderBy: "startTime", singleEvents: true, timeMax: (new Date(newDay)).toISOString(), timeMin: day.toISOString()};
+
+            url = url + new URLSearchParams(params);
+
+            var eventsInDay = await GetData(url, token);
+            eventsInDay = filterMonthlyEvents(eventsInDay.items);
+
+            //console.log("all events after filter: ", eventsInDay)
+
+            //TODO: check for empty eventData (should already be covered though)
+
+            //calculate freetime of that day
+            var newFreeTime = createFreetimeArr([eventsInDay]);
+            //console.log("time gaps between events: ", newFreeTime);
+
+            //iterate through time gaps, if freetime > event time, push event into freetime
+            var i;
+            for (i = 0; i < newFreeTime[0].length; i++) {
+                var difference = (newFreeTime[0][i].endTime).getTime() - (newFreeTime[0][i].startTime).getTime();
+
+                if (difference >= (eventTime + 1.8e+6)) {
+                    var startOfTime = new Date((newFreeTime[0][i].startTime).getTime() + 900000);
+                    var endOfTime = new Date(startOfTime.getTime() + eventTime);
+
+                    console.log("where event is scheduled: ", startOfTime, endOfTime);
+
+                    var newEvent = feeds.createEvent(recentEvent.summary, startOfTime, endOfTime);
+
+                    feeds.pushEvents([newEvent]);
+
+                    //delete current event now
+                    await deleteEvent(recentEvent, token);
+
+                    //found slot for event so get out of all loops now.
+                    cont = false;
+                    break;
+                }
+            }
+            //else continue iterating through days
+            day = new Date(newDay);
+        }
+    });
+}
+
+//TODO: change the calendar from primary to a parameter that user can enter
+//      add documentation to function.
+async function deleteEvent(eventToDelete, token) {
+    var url = "https://www.googleapis.com/calendar/v3/calendars/primary/events/" + eventToDelete.id;
+    //url.replace("{eventId}", eventToDelete.id);
+
+    //console.log("event id: ", eventToDelete.id);
+
+    const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+            'Authorization': 'Bearer ' + token,
+        }
+    })
+}
 
 /*========================================================
 Description: grabs the most recent event coming up for the user and makes it the
@@ -446,12 +547,16 @@ function makeNewNotif(recentEvent) {
         //      time, maybe change all times to a single timezone so they are all same
         var currentTime = new Date();
 
+
+        //change calendar from primary to grab all calendars later.
         var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?';
         var params = {orderBy: "startTime", singleEvents: true, timeMin: currentTime.toISOString()};
 
         url = url + new URLSearchParams(params);
 
+        //TODO: filter events to remove day long events.
         var eventData = await GetData(url, token);
+
         newEvent;
 
         var cont = true;
@@ -475,42 +580,6 @@ function makeNewNotif(recentEvent) {
     });
 }
 
-/*
-function updateNotification(recentEvent) {
-    chrome.identity.getAuthToken({ interactive: false }, async function(token) {
-        var currentTime = new Date();
-
-        //TODO: currently grabbing events from primary, change this to all or the select deadline
-        //event calendars later
-        var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?';
-        var params = {orderBy: "startTime", singleEvents: true, timeMin: currentTime.getTime()};
-
-        url = url + new URLSearchParams(params);
-
-        var eventData = await GetDate(url, token);
-        var newEvent;
-
-
-        var cont = true;
-        var k = 0;
-        //in theory i should be able to just grab the event but just in case,
-        //i will do this check
-
-        while (cont) {
-            if (eventData.items[k].start.dateTime == recentEvent.start.dateTime) {
-                k++
-            }
-            else {
-                newEvent = eventData.items[k];
-                cont = false;
-            }
-        }
-
-
-        chrome.runtime.sendMessage("message": "notification", "event": recentEvent);
-    });
-}
-*/
 
 
 
