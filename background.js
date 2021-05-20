@@ -17,7 +17,7 @@ var timeOfEvent = 0;
 var notifEvent;
 
 var newNotification = false;
-var newEvent;
+var newEvent = 0;
 
 //will be set in user preferences
 var START_DAY = 0;
@@ -100,7 +100,7 @@ feeds.fetchEvents = function() {
         console.log("newEventsList", newEventsList);
         //feeds.pushEvents(newEventsList);
 
-        makeNewNotif(newEventsList[newEventsList.length - 1]);
+        //makeNewNotif(newEventsList[newEventsList.length - 1]);
 
 
         allDeadLines.push(newEventsList);
@@ -412,24 +412,38 @@ Notes:- do something when user ignores event (maybe resechdule the event for lat
 self.addEventListener('notificationclick', function(event) {
   const clickedNotification = event.notification;
   clickedNotification.close();
+  makeNewNotif(notifEvent);
 
   // Do something as the result of the notification click
   switch (event.action) {
     case 'complete-event':
-        makeNewNotif(notifEvent);
         break;
     case 'reschedule':
-        makeNewNotif(notifEvent);
         rescheduleEvent(notifEvent);
         break;
   }
 });
 
+
+//grabs notification from here
 chrome.alarms.onAlarm.addListener(() => {
     var currentTime = new Date();
+
+    if (newEvent != 0 && newNotification) {
+        console.log(newEvent.summary);
+    }
+
+    //may need to change how this is currently functioning
+    if (newNotification != true && newEvent == 0) {
+        //create dummy event that will never be selected.
+        makeNewNotif({start: {dateTime: 0}});
+        console.log("hello");
+    }
+
+
     if (newNotification && currentTime.getTime() >= (new Date(newEvent.start.dateTime)).getTime()) {
-        sendNotificationToUser(newEvent);
         newNotification = false;
+        sendNotificationToUser(newEvent);
     }
 });
 
