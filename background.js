@@ -476,6 +476,7 @@ function rescheduleEvent(recentEvent) {
         //iterate through each day one at a time till solution is found
         var cont = true;
         while (cont) {
+
             //add 1 day to current day to get next day.
             var newDay = day.getTime() + DAY_IN_MILLISECONDS;
 
@@ -492,6 +493,8 @@ function rescheduleEvent(recentEvent) {
             var eventsInDay = await GetData(url, token);
             eventsInDay = filterMonthlyEvents(eventsInDay.items);
 
+
+
             //console.log("all events after filter: ", eventsInDay)
 
             //TODO: check for empty eventData (should already be covered though)
@@ -500,8 +503,11 @@ function rescheduleEvent(recentEvent) {
 
             //TODO: add user preferences, and change the '8' with whatever users
             //      start time is.
-            var startOfNextDay = day.setHours(8);
-            var newFreeTime = createFreetimeArr([eventsInDay], new Date(startOfNextDay));
+            var startOfNextDay = new Date(day.getTime());
+            startOfNextDay.setHours(8);
+            var newFreeTime = createFreetimeArr([eventsInDay], startOfNextDay);
+
+            console.log("freetime of ", startOfNextDay, newFreeTime);
             //console.log("time gaps between events: ", newFreeTime);
 
             //iterate through time gaps, if freetime > event time, push event into freetime
@@ -517,6 +523,8 @@ function rescheduleEvent(recentEvent) {
 
                     var newEvent = feeds.createEvent(recentEvent.summary, startOfTime, endOfTime);
 
+
+                    console.log("rescheduled event to: ", startOfTime, endOfTime);
                     feeds.pushEvents([newEvent]);
 
                     //delete current event now
@@ -617,9 +625,13 @@ function createFreetimeArr(eventsArr, startDate){
     //Variables To be set Gloabally
     var gap; // Take the abs of gap
     gap = 15 * 60000;// 15 mins gap break after event in milliseconds
-    var start_of_day = startDate;
-    var end_of_day = createDateVar(21,0,0);
+    var start_of_day = new Date(startDate.getTime());
 
+    var end_of_day = new Date(startDate.getTime());
+
+    //TODO: add user preferences to set where the event can be rescheduled.
+    end_of_day.setHours(21);
+    console.log("freetime from ", start_of_day, "to ", end_of_day);
 
 
     var freetime = [];
@@ -639,7 +651,7 @@ function createFreetimeArr(eventsArr, startDate){
     var i;
     for(i = 0; i < eventsArr.length; i++){
 
-        currentTimeOfDay = new Date(start_of_day);
+        currentTimeOfDay = new Date(start_of_day.getTime());
         numOfEvents = eventsArr[i].length;
 
         var j;
