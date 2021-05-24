@@ -1,14 +1,87 @@
+<!-- MOST OF THIS WAS COPIED FROM: https://www.w3schools.com/howto/howto_js_tabs.asp-->
+
 <!DOCTYPE html>
+
 <html>
-    <head>
-        <link rel="stylesheet" href="button.css">
-    </head>
+<head>
+<style>
+
+.tab {
+    overflow: hidden;
+    border: 1px solid #ccc;
+    background-color: #f1f1f1;
+}
+
+
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 40px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="tab">
+    <button id="openEvents" class="tablinks" >Events</button>
+    <button id="openSettings" class="tablinks">Settings</button>
+</div>
+
+<div id="Events" class="tabcontent">
+    <h3>Events</h3>
     <body>
         <label for="due">Due Date:</label>
         <br><input type="date" id="due" name="due"></br>
-        <label for="timeNeeded">Time Needed (In Hours):</label>
+        <br><label for="timeNeeded">Time Needed (In Hours):</label></br>
         <input type="input" id="timeNeeded" name="timeNeeded", value="">
-        <input id="button" type="submit" name="button" value="add events"/>
-        <script src="popup.js"></script>
+        <br><br><input id="submitEvents" type="submit" name="events" value="add events"/></br></br>
     </body>
+</div>
+
+
+<div id="Settings" class="tabcontent">
+    <h3>Settings</h3>
+    <body>
+        <p><label for="startTime">Choose how early events can be placed:</label>
+        <br><input type="time" id="startTime" name="startTime" value="08:00"
+               min="00:00" max="24:00" required></br>
+        <small>will use default values if left empty</small></p>
+
+        <p><label for="endTime">Choose how late events can be placed:</label>
+        <br><input type="time" id="endTime" name="endTime" value="21:00"
+               min="00:00" max="24:00" required></br>
+        <small>will use default values if left empty</small><p>
+        <br><br><input id="submitSettings" type="submit" name="settings" value="save"/></br></br>
+    </body>
+</div>
+
+<script src="popup.js"></script>
+
+</body>
 </html>

@@ -1,4 +1,8 @@
-chrome.alarms.create({ delayInMinutes: 0, periodInMinutes: 1 });
+//just seperate what you need into a different file and include it here.
+importScripts("lib/notification_system.js")
+
+//TODO: save settings in chrome.storage.
+chrome.alarms.create({ delayInMinutes: 0, periodInMinutes: 0.5 });
 
 const DAY_IN_MILLISECONDS = 8.64e+7;
 
@@ -20,7 +24,19 @@ var newNotification = false;
 var newEvent = 0;
 
 //will be set in user preferences
-var START_DAY = 0;
+var start_time = {
+    hour: 8,
+    minute: 0,
+};
+
+chrome.storage.local.set({start_time});
+
+var end_time = {
+    hour: 21,
+    minute: 0,
+};
+
+chrome.storage.local.set({end_time});
 
 var feeds = {};
 
@@ -52,61 +68,62 @@ Notes:- none
 ========================================================*/
 feeds.fetchEvents = function() {
     chrome.identity.getAuthToken({interactive: false}, async function(token) {
-        var calList = [];
-        var events = [];
-        var calendarIds = [];
-        calList = await GetData(feeds.CALENDAR_LIST_API_URL_, token);
+        //did this the easy way, hard way is to somehow make fetching the end_time
+        //data asynchronus so that we dont have to work inside this get call.
+        chrome.storage.local.get(["end_time"], async function(result) {
+            var calList = [];
+            var events = [];
+            var calendarIds = [];
+            calList = await GetData(feeds.CALENDAR_LIST_API_URL_, token);
 
-        var k;
-        for (k = 0; k < calList.items.length; k++) {
-            calendarIds.push(calList.items[k].id);
-        }
-
-        var i;
-        for (i = 0; i < calendarIds.length; i++) {
-            var d = duedate.toISOString();
-            var c = current.toISOString();
-
-            var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(calendarIds[i]));
-            var params = {orderBy: "startTime", singleEvents: true, timeMax: d, timeMin: c}
-            url = url + new URLSearchParams(params);
-
-            var eventData = await GetData(url, token);
-            var j;
-            for (j = 0; j < eventData.items.length; j++) {
-                events.push(eventData.items[j]);
+            var k;
+            for (k = 0; k < calList.items.length; k++) {
+                calendarIds.push(calList.items[k].id);
             }
-        }
+
+            var i;
+            for (i = 0; i < calendarIds.length; i++) {
+                var d = duedate.toISOString();
+                var c = current.toISOString();
+
+                var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(calendarIds[i]));
+                var params = {orderBy: "startTime", singleEvents: true, timeMax: d, timeMin: c}
+                url = url + new URLSearchParams(params);
+
+                var eventData = await GetData(url, token);
+                var j;
+                for (j = 0; j < eventData.items.length; j++) {
+                    events.push(eventData.items[j]);
+                }
+            }
 
 
-        events = filterMonthlyEvents(events);
+            events = filterMonthlyEvents(events);
 
-        events = orderByDays(events, duedate);
+            events = orderByDays(events, duedate);
 
-        console.log("events", events);
+            console.log("events", events);
 
-        var freetime = createFreetimeArr(events, new Date());
+            var freetime = createFreetimeArr(events, new Date(), result.end_time);
 
-        console.log("freetime", freetime);
+            console.log("freetime", freetime);
 
-        var percentage = calculatePercentages(freetime);
-        //console.log(percentage);
+            var percentage = calculatePercentages(freetime);
+            //console.log(percentage);
 
-        console.log("time", timeNeeded);
-        var allocation = allocateFreeTime(freetime, percentage);
-        console.log("allocation", allocation);
+            console.log("time", timeNeeded);
+            var allocation = allocateFreeTime(freetime, percentage);
+            console.log("allocation", allocation);
 
-        var newEventsList = createEventList(freetime, allocation);
-        console.log("newEventsList", newEventsList);
-        //feeds.pushEvents(newEventsList);
-
-        //makeNewNotif(newEventsList[newEventsList.length - 1]);
+            var newEventsList = createEventList(freetime, allocation);
+            console.log("newEventsList", newEventsList);
+            //feeds.pushEvents(newEventsList);
 
 
-        allDeadLines.push(newEventsList);
-        console.log("Finished");
+            allDeadLines.push(newEventsList);
+            console.log("Finished");
+        });
     });
-
 }
 
 /*========================================================
@@ -341,33 +358,56 @@ chrome.runtime.onMessage.addListener(
         current = new Date();
         duedate = request.duedate + 25200000; //add 7 hours
         timeNeeded = request.requiredTime;
-        //console.log(duedate);
+
+        setTimeOfDay(request.startTime, true);
+        setTimeOfDay(request.endTime, false);
+
+        console.log("user input for start: ", request.startTime);
+
+        console.log("user end_time time: ", end_time);
+
         feeds.requestInteracticeAuthToken();
     }
   }
 );
 
 
-/*========================================================
-Description: listener that waits for popup.js to ask for a notification.
-             (popup.js asks for notification only when event is overlappying with
-             users current time.)
-Parameters:none
-Returns: none
-SideEffects: none
-Globals Used: none
-Notes:- function does very little maybe possible to merge with sendNotificationToUser()
-========================================================*/
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
-    if( request.message === "made_it" ) {
-        console.log("notification has been requested");
-        sendNotificationToUser(request.notif);
+    if( request.message === "settings" ) {
+        chrome.storage.local.get(["start_time"], (result) => {
+            //console.log("the start_time is: ", result);
+            const start_time = setTimeOfDay(request.startTime);
+            chrome.storage.local.set({start_time});
+        });
+        chrome.storage.local.get(["end_time"], (result) => {
+            //console.log("the endtime is: ", result);
+            const end_time = setTimeOfDay(request.endTime);
+            chrome.storage.local.set({end_time});
+        });
+
+        console.log("settings updated");
     }
   }
 );
 
 
+
+function setTimeOfDay(timeOfDay, start) {
+    var startArray = timeOfDay.split(":");
+
+    var hour = parseInt(startArray[0], 10);
+    var minute = parseInt(startArray[1], 10);
+
+    var dateTime;
+
+    dateTime = {
+        hour: hour,
+        minute: minute,
+    };
+
+    return dateTime;
+}
 
 /*========================================================
 Description: creates a notification for user
@@ -412,7 +452,9 @@ Notes:- do something when user ignores event (maybe resechdule the event for lat
 self.addEventListener('notificationclick', function(event) {
   const clickedNotification = event.notification;
   clickedNotification.close();
-  makeNewNotif(notifEvent);
+
+  //IF NOTIFICATION SYSTEM BREAKS TRY UNCOMMENTING THIS
+  //makeNewNotif(notifEvent);
 
   // Do something as the result of the notification click
   switch (event.action) {
@@ -447,164 +489,6 @@ chrome.alarms.onAlarm.addListener(() => {
     }
 });
 
-/*========================================================
-Description: reschedule given event to next available time slot and delete event
-             from current slot.
-Parameters: recentEvent
-Returns: none
-SideEffects: none
-Globals Used: recentEvent
-Notes:- TODO: have to schedule events from the next day onwards, but the
-              createFreetimeArr() does not have functionality for choosing the
-              start time for when the time gaps are calculated.
-========================================================*/
-function rescheduleEvent(recentEvent) {
-    //grab current day
-    var day = new Date();
-    day.setHours(0);
-    day.setMinutes(0);
-    day.setSeconds(0);
-    day.setMilliseconds(0);
-
-    day = new Date(day.getTime() + DAY_IN_MILLISECONDS);
-
-
-    //calculate total time event takes
-    var eventTime = (new Date(recentEvent.end.dateTime)).getTime() - (new Date(recentEvent.start.dateTime)).getTime();
-
-    chrome.identity.getAuthToken({ interactive: false }, async function(token) {
-        //iterate through each day one at a time till solution is found
-        var cont = true;
-        while (cont) {
-
-            //add 1 day to current day to get next day.
-            var newDay = day.getTime() + DAY_IN_MILLISECONDS;
-
-            //console.log("start of day its searching", day);
-            //console.log("end of day its searching: ", new Date(newDay));
-
-            //make fetch call for that day.
-            //TODO: change to grab events from all user calendars
-            var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?';
-            var params = {orderBy: "startTime", singleEvents: true, timeMax: (new Date(newDay)).toISOString(), timeMin: day.toISOString()};
-
-            url = url + new URLSearchParams(params);
-
-            var eventsInDay = await GetData(url, token);
-            eventsInDay = filterMonthlyEvents(eventsInDay.items);
-
-
-
-            //console.log("all events after filter: ", eventsInDay)
-
-            //TODO: check for empty eventData (should already be covered though)
-
-            //calculate freetime of that day
-
-            //TODO: add user preferences, and change the '8' with whatever users
-            //      start time is.
-            var startOfNextDay = new Date(day.getTime());
-            startOfNextDay.setHours(8);
-            var newFreeTime = createFreetimeArr([eventsInDay], startOfNextDay);
-
-            console.log("freetime of ", startOfNextDay, newFreeTime);
-            //console.log("time gaps between events: ", newFreeTime);
-
-            //iterate through time gaps, if freetime > event time, push event into freetime
-            var i;
-            for (i = 0; i < newFreeTime[0].length; i++) {
-                var difference = (newFreeTime[0][i].endTime).getTime() - (newFreeTime[0][i].startTime).getTime();
-
-                if (difference >= eventTime) {
-                    var startOfTime = new Date((newFreeTime[0][i].startTime).getTime());
-                    var endOfTime = new Date(startOfTime.getTime() + eventTime);
-
-                    console.log("where event is scheduled: ", startOfTime, endOfTime);
-
-                    var newEvent = feeds.createEvent(recentEvent.summary, startOfTime, endOfTime);
-
-
-                    console.log("rescheduled event to: ", startOfTime, endOfTime);
-                    feeds.pushEvents([newEvent]);
-
-                    //delete current event now
-                    await deleteEvent(recentEvent, token);
-
-                    //found slot for event so get out of all loops now.
-                    cont = false;
-                    break;
-                }
-            }
-            //else continue iterating through days
-            day = new Date(newDay);
-        }
-    });
-}
-
-//TODO: change the calendar from primary to a parameter that user can enter
-//      add documentation to function.
-async function deleteEvent(eventToDelete, token) {
-    var url = "https://www.googleapis.com/calendar/v3/calendars/primary/events/" + eventToDelete.id;
-    //url.replace("{eventId}", eventToDelete.id);
-
-    //console.log("event id: ", eventToDelete.id);
-
-    const response = await fetch(url, {
-        method: "DELETE",
-        headers: {
-            'Authorization': 'Bearer ' + token,
-        }
-    })
-}
-
-/*========================================================
-Description: grabs the most recent event coming up for the user and makes it the
-             event that the notification system will wait on.
-Parameters: none
-Returns: newRecentEvent (new current event for the notification system to wait on)
-SideEffects: none
-Globals Used: none
-Notes:- none
-========================================================*/
-
-function makeNewNotif(recentEvent) {
-    chrome.identity.getAuthToken({ interactive: false }, async function(token) {
-        //TODO: change method of grabbing time so its not dependent on users local
-        //      time, maybe change all times to a single timezone so they are all same
-        var currentTime = new Date();
-
-
-        //change calendar from primary to grab all calendars later.
-        var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?';
-        var params = {orderBy: "startTime", singleEvents: true, timeMin: currentTime.toISOString()};
-
-        url = url + new URLSearchParams(params);
-
-        //TODO: filter events to remove day long events.
-        var eventData = await GetData(url, token);
-
-        newEvent;
-
-        var cont = true;
-        var k = 0;
-
-        //TODO: add case for when their is no events in eventData.
-
-        while (cont) {
-            if (eventData.items[k].start.dateTime == recentEvent.start.dateTime) {
-                k++
-            }
-            else {
-                newEvent = eventData.items[k];
-                cont = false;
-            }
-        }
-        //console.log(newEvent.summary);
-        //chrome.runtime.sendMessage("message": "notification", "event": recentEvent);
-        //chrome.runtime.sendMessage({"message": "notification", "event": newEvent});
-        newNotification = true;
-    });
-}
 
 
 
@@ -620,7 +504,7 @@ Notes:- I have to fix the gap option in this function
       - Fix the filling array helper Function
       - make gap, start_of_day, end_of_day global variables
 ========================================================*/
-function createFreetimeArr(eventsArr, startDate){
+function createFreetimeArr(eventsArr, startDate, endDate){
 
     //Variables To be set Gloabally
     var gap; // Take the abs of gap
@@ -629,9 +513,11 @@ function createFreetimeArr(eventsArr, startDate){
 
     var end_of_day = new Date(startDate.getTime());
 
-    //TODO: add user preferences to set where the event can be rescheduled.
-    end_of_day.setHours(21);
-    console.log("freetime from ", start_of_day, "to ", end_of_day);
+    end_of_day.setHours(endDate.hour);
+    end_of_day.setMinutes(endDate.minute);
+
+
+    //console.log("freetime from ", start_of_day, "to ", end_of_day);
 
 
     var freetime = [];
@@ -873,4 +759,10 @@ function createDateVar(hours, minutes, seconds){
     date.setSeconds(seconds);
 
     return date;
+}
+function loadScript(scriptName) {
+    var scriptEl = document.createElement('script');
+    scriptEl.src = chrome.extension.getURL('lib/' + scriptName + '.js');
+    //scriptEl.addEventListener('load', callback, false);
+    document.head.appendChild(scriptEl);
 }
