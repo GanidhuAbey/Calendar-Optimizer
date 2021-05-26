@@ -1,4 +1,6 @@
 <!-- MOST OF THIS WAS COPIED FROM: https://www.w3schools.com/howto/howto_js_tabs.asp-->
+<!-- TODO: need to update the base values when the settings are saved-->
+
 
 <!DOCTYPE html>
 
@@ -76,7 +78,10 @@
         <p><label for="endTime">Choose how late events can be placed:</label>
         <br><input type="time" id="endTime" name="endTime" value="21:00"
                min="00:00" max="24:00" required></br>
-        <small>will use default values if left empty</small><p>
+        <small>will use default values if left empty</small></p>
+        <br><label for="snoozeTime">Snooze Events For How Long : </label></br>
+        <br><input type="input" id="snoozeTime" name="snoozeTime", value="5">
+        <small>minutes</small></br>
         <br><br><input id="submitSettings" type="submit" name="settings" value="save"/></br></br>
     </body>
 </div>

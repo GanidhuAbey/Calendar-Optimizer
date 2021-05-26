@@ -23,6 +23,10 @@ var notifEvent;
 var newNotification = false;
 var newEvent = 0;
 
+var snoozeTime = 5;
+
+chrome.storage.local.set({snoozeTime});
+
 //will be set in user preferences
 var start_time = {
     hour: 8,
@@ -359,34 +363,30 @@ chrome.runtime.onMessage.addListener(
         duedate = request.duedate + 25200000; //add 7 hours
         timeNeeded = request.requiredTime;
 
-        setTimeOfDay(request.startTime, true);
-        setTimeOfDay(request.endTime, false);
-
-        console.log("user input for start: ", request.startTime);
-
-        console.log("user end_time time: ", end_time);
-
         feeds.requestInteracticeAuthToken();
     }
   }
 );
 
-
+//TODO: Add some indicator on the settings page to indicate that settigns have been
+//     updated.
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "settings" ) {
-        chrome.storage.local.get(["start_time"], (result) => {
+        chrome.storage.local.get(["start_time", "end_time", "snoozeTime"], (result) => {
             //console.log("the start_time is: ", result);
             const start_time = setTimeOfDay(request.startTime);
             chrome.storage.local.set({start_time});
-        });
-        chrome.storage.local.get(["end_time"], (result) => {
-            //console.log("the endtime is: ", result);
+
             const end_time = setTimeOfDay(request.endTime);
             chrome.storage.local.set({end_time});
-        });
 
-        console.log("settings updated");
+            const snoozeTime = request.snoozeTime;
+            console.log("the updated snooze is: ", snoozeTime);
+            chrome.storage.local.set({snoozeTime});
+
+            console.log("settings updated");
+        });
     }
   }
 );
@@ -408,89 +408,6 @@ function setTimeOfDay(timeOfDay, start) {
 
     return dateTime;
 }
-
-/*========================================================
-Description: creates a notification for user
-Parameters:none
-Returns: none
-SideEffects: none
-Globals Used: recentEvent
-Notes:- maybe add another button to reschedule the event
-========================================================*/
-function sendNotificationToUser(recentEvent) {
-    console.log("sending notification...");
-
-
-
-    const title = "Event: ".concat(recentEvent.summary);
-    const options = {
-      body: 'Mark this event as in progress?',
-      actions: [
-          {
-              action: 'complete-event',
-              title: 'Working on Event...'
-          },
-          {
-              action: 'reschedule',
-              title: 'Reschedule Event'
-          }
-      ]
-    };
-    notifEvent = recentEvent;
-
-    registration.showNotification(title, options);
-}
-
-/*========================================================
-Description: listens for a response to desktop notification
-Parameters:none
-Returns: none
-SideEffects: none
-Globals Used: recentEvent
-Notes:- do something when user ignores event (maybe resechdule the event for later)
-========================================================*/
-self.addEventListener('notificationclick', function(event) {
-  const clickedNotification = event.notification;
-  clickedNotification.close();
-
-  //IF NOTIFICATION SYSTEM BREAKS TRY UNCOMMENTING THIS
-  //makeNewNotif(notifEvent);
-
-  // Do something as the result of the notification click
-  switch (event.action) {
-    case 'complete-event':
-        break;
-    case 'reschedule':
-        rescheduleEvent(notifEvent);
-        break;
-  }
-});
-
-
-//grabs notification from here
-chrome.alarms.onAlarm.addListener(() => {
-    var currentTime = new Date();
-
-    if (newEvent != 0 && newNotification) {
-        console.log(newEvent.summary);
-    }
-
-    //may need to change how this is currently functioning
-    if (newNotification != true && newEvent == 0) {
-        //create dummy event that will never be selected.
-        makeNewNotif({start: {dateTime: 0}});
-        console.log("hello");
-    }
-
-
-    if (newNotification && currentTime.getTime() >= (new Date(newEvent.start.dateTime)).getTime()) {
-        newNotification = false;
-        sendNotificationToUser(newEvent);
-    }
-});
-
-
-
 
 
 /*========================================================
@@ -765,4 +682,9 @@ function loadScript(scriptName) {
     scriptEl.src = chrome.extension.getURL('lib/' + scriptName + '.js');
     //scriptEl.addEventListener('load', callback, false);
     document.head.appendChild(scriptEl);
+}
+
+//opens a new tab with the given url.
+function openPage(newUrl) {
+    chrome.tabs.create({url: newUrl});
 }
