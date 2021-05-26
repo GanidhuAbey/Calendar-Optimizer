@@ -23,25 +23,6 @@ var notifEvent;
 var newNotification = false;
 var newEvent = 0;
 
-var snoozeTime = 5;
-
-chrome.storage.local.set({snoozeTime});
-
-//will be set in user preferences
-var start_time = {
-    hour: 8,
-    minute: 0,
-};
-
-chrome.storage.local.set({start_time});
-
-var end_time = {
-    hour: 21,
-    minute: 0,
-};
-
-chrome.storage.local.set({end_time});
-
 var feeds = {};
 
 feeds.CALENDAR_LIST_API_URL_ = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
@@ -373,20 +354,18 @@ chrome.runtime.onMessage.addListener(
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "settings" ) {
-        chrome.storage.local.get(["start_time", "end_time", "snoozeTime"], (result) => {
-            //console.log("the start_time is: ", result);
-            const start_time = setTimeOfDay(request.startTime);
-            chrome.storage.local.set({start_time});
+        //console.log("the start_time is: ", result);
+        const start_time = setTimeOfDay(request.startTime);
+        chrome.storage.local.set({start_time});
 
-            const end_time = setTimeOfDay(request.endTime);
-            chrome.storage.local.set({end_time});
+        const end_time = setTimeOfDay(request.endTime);
+        chrome.storage.local.set({end_time});
 
-            const snoozeTime = request.snoozeTime;
-            console.log("the updated snooze is: ", snoozeTime);
-            chrome.storage.local.set({snoozeTime});
+        const snoozeTime = request.snoozeTime;
+        console.log("the updated snooze is: ", snoozeTime);
+        chrome.storage.local.set({snoozeTime});
 
-            console.log("settings updated");
-        });
+        console.log("settings updated");
     }
   }
 );

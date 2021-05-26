@@ -110,8 +110,10 @@ window.onload = function() {
     }
 
     //maybe not bests solution but on load we will just save the previous settings.
+    /*
     chrome.runtime.sendMessage({"message": "settings",
                                 "startTime": new String(startOfDay),
                                 "endTime": new String(endOfDay),
                                 "snoozeTime": snoozeTime});
+    */
 };
