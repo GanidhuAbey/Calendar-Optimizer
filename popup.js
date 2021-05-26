@@ -91,16 +91,27 @@ window.onload = function() {
         eventContent.style.display = "block";
     }
 
-    //maybe case system?
+
+
+    var startOfDay, endOfDay, snoozeTime;
 
     //load in the saved settings
     if (localStorage.getItem("startOfDay")) {
-        document.querySelector("#startTime").value = localStorage.getItem("startOfDay");
+        startOfDay = localStorage.getItem("startOfDay");
+        document.querySelector("#startTime").value = startOfDay;
     }
     if (localStorage.getItem("endOfDay")) {
-        document.querySelector("#endTime").value = localStorage.getItem("endOfDay");
+        endOfDay = localStorage.getItem("endOfDay");
+        document.querySelector("#endTime").value = endOfDay;
     }
     if (localStorage.getItem("snoozeTime")) {
-        document.querySelector("#snoozeTime").value = localStorage.getItem("snoozeTime");
+        snoozeTime = localStorage.getItem("snoozeTime");
+        document.querySelector("#snoozeTime").value = snoozeTime;
     }
+
+    //maybe not bests solution but on load we will just save the previous settings.
+    chrome.runtime.sendMessage({"message": "settings",
+                                "startTime": new String(startOfDay),
+                                "endTime": new String(endOfDay),
+                                "snoozeTime": snoozeTime});
 };
