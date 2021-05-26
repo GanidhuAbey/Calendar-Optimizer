@@ -31,6 +31,11 @@ document.getElementById('submitSettings').addEventListener("click", function() {
         snoozeTime = "5"
     }
 
+    //set the default values to the updated version
+    localStorage.setItem("startOfDay", startOfDay);
+    localStorage.setItem("endOfDay", endOfDay);
+    localStorage.setItem("snoozeTime", snoozeTime);
+
     chrome.runtime.sendMessage({"message": "settings",
                                 "startTime": new String(startOfDay),
                                 "endTime": new String(endOfDay),
@@ -84,5 +89,18 @@ window.onload = function() {
     var eventContent = document.getElementById("Events");
     if (eventContent.style.display == "none") {
         eventContent.style.display = "block";
+    }
+
+    //maybe case system?
+
+    //load in the saved settings
+    if (localStorage.getItem("startOfDay")) {
+        document.querySelector("#startTime").value = localStorage.getItem("startOfDay");
+    }
+    if (localStorage.getItem("endOfDay")) {
+        document.querySelector("#endTime").value = localStorage.getItem("endOfDay");
+    }
+    if (localStorage.getItem("snoozeTime")) {
+        document.querySelector("#snoozeTime").value = localStorage.getItem("snoozeTime");
     }
 };
