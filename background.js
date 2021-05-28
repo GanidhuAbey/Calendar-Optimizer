@@ -3,8 +3,11 @@
 var duedate;//DueDate ENDS at 5 pm of that Day need to fix it
 var current;
 
+
 var timeNeeded;
 var timeOfEvent = 0;
+var timeAllocatedForProj = 0;
+var eventsCollector = [];
 
 //will be set in user preferences
 var START_DAY = 0;
@@ -12,6 +15,7 @@ var START_DAY = 0;
 var feeds = {};
 
 var counter = 0;
+var globalcounter = 0;
 
 feeds.CALENDAR_LIST_API_URL_ = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 feeds.CALENDAR_EVENTS_API_URL_ = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events?'
@@ -65,19 +69,24 @@ feeds.fetchEvents = function() {
         console.log("events", events);
 
         var freetime = createFreetimeArr(events);
-
         console.log("freetime", freetime);
 
-        var percentage = calculatePercentages(freetime);
+        CreateEvenDistribution(freetime);
+        console.log("eventsCollector", eventsCollector);
+
+        console.log("freetime", freetime);
+        feeds.pushEvents(eventsCollector);
+
+        //var percentage = calculatePercentages(freetime);
         //console.log(percentage);
 
-        console.log("time", timeNeeded);
-        var allocation = allocateFreeTime(freetime, percentage);
-        console.log("allocation", allocation);
+        //console.log("time", timeNeeded);
+        //var allocation = allocateFreeTime(freetime, percentage);
+        //console.log("allocation", allocation);
 
-        var newEventsList = createEventList(freetime, allocation);
-        console.log("newEventsList", newEventsList);
-        feeds.pushEvents(newEventsList);
+        //var newEventsList = createEventList(freetime, allocation);
+        //console.log("newEventsList", newEventsList);
+
 
         /*
         var firstEvent = grabFirstEvent(newEventsList);
@@ -448,20 +457,15 @@ Notes: ?
 function createEventList (freetime, hourPer){
     //Need to be parameters/globals:
     var name = 'Test Event'; // name of the event
-    var timeOfEvent = 30 * 60000; // 30 mins in milliseconds
+    var timeForEventBlock = 30 * 60000; // 30 mins in milliseconds
 
     var newEvents = [];
-    var remainder = 0;
     var gap;
     var timeInDay;
     var startTime;
     var endTime;
-
     var newEvent;
-
-
-
-
+    var remainder = 0;
 
     var i;
     for(i = 0; i < freetime.length; i++){
@@ -469,32 +473,255 @@ function createEventList (freetime, hourPer){
 
 
           var j = 0;
-          while(timeInDay > timeOfEvent){
+          while(timeInDay >= timeForEventBlock){
                 startTime = new Date(freetime[i][j].startTime);
                 endTime = new Date(freetime[i][j].endTime);
 
                 gap = endTime.getTime() - startTime.getTime();
 
-                while((gap - timeOfEvent) >= 0){
-                    gap -= timeOfEvent;
+                while((gap - timeForEventBlock) >= 0 && timeInDay >= timeForEventBlock){
+                    gap -= timeForEventBlock;
 
-                    newEvent = feeds.createGapEvent(name, startTime, timeOfEvent);
+                    newEvent = feeds.createGapEvent(name, startTime, timeForEventBlock);
                     newEvents.push(newEvent);
-                    startTime = new Date(startTime.getTime() + timeOfEvent);
+                    startTime = new Date(startTime.getTime() + timeForEventBlock);
 
-                    timeInDay -= timeOfEvent;
+                    timeInDay -= timeForEventBlock;
                 }
 
-                remainder += gap;
+                //remainder += timeInDay;
                 j += 1;
 
           }
+
 
     }
 
     return newEvents;
 
 }
+
+/*========================================================
+Description: Even Distributes the 30 min time blocks
+Parameters: freetime, hourPer
+Returns: remainder
+SideEffects: none
+Globals Used: none
+Notes: *Just a testing function for right now
+========================================================*/
+/*
+function evenDistribution (freetime, hourPer){
+    //Need to be parameters/globals:
+    var timeForEventBlock = 30 * 60000; // 30 mins in milliseconds
+    var current = new Date();
+    var dayInBetween = duedate.getTime() - current.getTime();
+    dayInBetween = Math.floor(dayInBetween/8.64e+7);
+
+    var amtOfBlocks = Math.floor(timeNeeded/30);//
+
+    var i;
+    for(i = 0; i < amtOfBlocks; i++){
+        if ((dayInBetween%2) != 0){//odd
+            current = Math.floor(dayInBetween/2);
+            push.(30 min block in to event arr);
+        }
+        else{//even
+          current = Math.floor(dayInBetween/2);
+          push.(30 min block in to event arr);
+          current += 8.64e+7;
+
+        }
+    }
+
+    return rem;
+}
+*/
+/*===========================================================================================*/
+
+function CreateEvenDistribution(freetime){
+    timeAllocatedForProj = 0;
+    var current = createDateVar(0, 0, 0);
+    var daysInBetween = duedate.getTime() - current.getTime();
+    // var worklist = [];
+    daysInBetween = Math.floor(daysInBetween/8.64e+7);
+
+    console.log(daysInBetween);
+    while(timeAllocatedForProj < timeNeeded){
+        evenDistributionRec (freetime, 0, daysInBetween);
+        //workInProgressRec(freetime, 0, daysInBetween, 0);
+    }
+}
+
+var worklist = [];
+function evenDistributionRec(freetime, left, right){
+
+    var bb, bt, tb, tt;
+    var len = (right - left);
+
+    var createEventSuccess;
+    if(timeAllocatedForProj >= timeNeeded){
+        return;
+    }
+    if( len < 0){
+        return;
+    }
+
+    if ((len%2) != 0){//even
+        current = Math.floor(len/2);
+        current += left;
+
+        createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+        createEventSuccess = createEventBlock(freetime, current + 1); //push.(30 min block in to event arr at current - 1);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        bb = left;
+        bt = current - 1;
+        tb = current + 2;
+        tt = right
+
+
+    }
+    else{//odd
+        current = Math.floor(len/2);
+        current += left;
+
+        createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        bb = left;
+        bt = current - 1;
+        tb = current + 1;
+        tt = right;
+
+
+    }
+
+
+    var distB = {
+        'left': bb,
+        'right': bt,
+    };
+    var distT = {
+        'left': tb,
+        'right': tt,
+    };
+    worklist.push(distB);
+    worklist.push(distT);
+
+    left = worklist[0].left;
+    right = worklist[0].right;
+    worklist.shift();
+    evenDistributionRec(freetime, left, right);
+
+}
+
+
+
+function createEventBlock(freetime, index){
+  //Need to be parameters/globals:
+  var name = 'EvenDistrib Events'; // name of the event
+  var tFEB = 30 * 60000; // 30 mins in milliseconds
+  var gapBetweenEvents = 15 * 60000;
+
+  var gap;
+  var startTime;
+  var endTime;
+  var newEvent;
+
+
+  var i;
+  for(i = 0; i < freetime[index].length; i++){
+              startTime = new Date(freetime[index][i].startTime);
+              startTime = new Date(startTime.getTime() + gapBetweenEvents);
+              endTime = new Date(freetime[index][i].endTime);
+
+              gap = endTime.getTime() - startTime.getTime();
+
+              if((gap - tFEB) >= 0){
+                  newEvent = feeds.createGapEvent(name, startTime , tFEB);
+                  eventsCollector.push(newEvent);
+
+                  //startTime = new Date(startTime.getTime() + tFEB + gapBetweenEvents);
+                  //freetime[index][i].startTime = startTime;
+
+                  removeFreetime(freetime, index, i, newEvent);
+
+
+                  return true;
+
+              }
+
+    }
+
+    return false;
+}
+
+
+function removeFreetime(freetime, index1, index2, eventToAdd){
+
+    var topHalf;
+    var bottomHalf;
+
+    var startTime = new Date(freetime[index1][index2].startTime);
+    var endTime = new Date(freetime[index1][index2].endTime);
+
+    var eventStartTime = new Date(eventToAdd.start.dateTime);
+    var eventEndTime = new Date(eventToAdd.end.dateTime);
+
+    //console.log(startTime);
+    //console.log(eventEndTime);
+
+    if(startTime.getTime() < eventStartTime.getTime()){
+        freetime[index1][index2].endTime =  eventStartTime;
+
+        bottomHalf = freetime[index1].slice(0, index2 + 1);
+        topHalf = freetime[index1].slice(index2 + 1);
+
+        var dateObj = {
+            'startTime' : new Date(eventEndTime),
+            'endTime' :  new Date(endTime),
+        };
+
+        bottomHalf.push(dateObj);
+        freetime[index1] = bottomHalf.concat(topHalf);
+
+        return true;
+
+    }
+
+    else if((startTime.getTime() == eventStartTime.getTime()) && (endTime.getTime() == eventEndTime.getTime())) {
+        bottomHalf = freetime[index1].slice(0, index2);
+        topHalf = freetime[index1].slice(index2 + 1);
+        freeTime[index1] = bottomHalf.concat(topHalf);
+
+        return true;
+    }
+
+
+    else if(startTime.getTime() == eventStartTime.getTime()){
+        console.log("working");
+        freetime[index1][index2].startTime =  new Date(eventEndTime);
+
+        return true;
+    }
+    else if(endTime.getTime() == eventEndTime.getTime()){
+        freetime[index1][index2].endTime =  new Date(eventStartTime);
+
+        return true;
+    }
+
+    return false;
+
+}
+
+
+
 
 /*========================================================
 Helper Functions
@@ -519,4 +746,311 @@ function createDateVar(hours, minutes, seconds){
     date.setSeconds(seconds);
 
     return date;
+}
+function sumArr(arr, len){
+  var sum = 0;
+  var i;
+  for(i = 0; i < len; i++){
+      sum += arr[i];
+  }
+  return sum;
+}
+
+
+/*========================================================
+Work-in Progress functions
+========================================================*/
+
+function workInProgressRec(freetime, left, right, secondLeft){
+    var bb, bt, tb, tt;
+    var current, former;
+    var len = (right - left);
+    globalcounter += 1;
+
+    var createEventSuccess;
+
+    console.log("HowManyRec", globalcounter);
+
+    if(timeAllocatedForProj >= timeNeeded){
+        return;
+    }
+    if( len < 0){
+        return;
+    }
+
+    if(timeAllocatedForProj === 0){
+
+      if ((len%2) != 0){//even
+          current = Math.floor(len/2);
+          current += left;
+
+          createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+          if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+          if(timeAllocatedForProj >= timeNeeded){
+              return;
+          }
+
+          createEventSuccess = createEventBlock(freetime, current + 1); //push.(30 min block in to event arr at current - 1);
+          if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+          left = left;
+          right = current - 1;
+          secondLeft = current + 2;
+
+      }
+      else{//odd
+
+          current = Math.floor(len/2);
+          current += left;
+          console.log("formerdasd", current);
+
+          createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+          if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+          left = left;
+          right = current - 1;
+          secondLeft = current + 1;
+
+
+
+      }
+
+
+    }
+
+
+    else if ((len%2) != 0){//even
+        current = Math.floor(len/2);
+        former = Math.floor(len/2);
+        current += left;
+        former += secondLeft;
+        console.log("former", former);
+
+        createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+        createEventSuccess = createEventBlock(freetime, former + 1); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+        createEventSuccess = createEventBlock(freetime, current + 1); //push.(30 min block in to event arr at current - 1);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+        createEventSuccess = createEventBlock(freetime, former); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+
+
+        left = left;
+        right = current - 1;
+        secondLeft  = current + 2;
+
+
+    }
+    else{//odd
+        console.log("fb");
+        current = Math.floor(len/2);
+        former = Math.floor(len/2);
+        current += left;
+        former += secondLeft;
+
+        createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+        createEventSuccess = createEventBlock(freetime, former); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+        left = left;
+        right = current - 1;
+        secondLeft = current + 1;
+
+
+
+    }
+
+    workInProgressRec(freetime, left, right, secondLeft);
+
+
+}
+
+
+
+
+function mirrorBottomHalf(left, right){
+  var i = 0;
+  var lastElement = right;
+
+  var mid = Math.floor(len/2);
+  while(timeAllocatedForProj < timeNeeded){
+
+
+      i += 1;
+  }//end While
+
+
+
+
+}
+
+function evenDistributionRecczxcz (freetime, left, right, worklist){
+
+    var bb, bt, tb, tt;
+    var len = (right - left);
+
+    var createEventSuccess;
+    if(timeAllocatedForProj >= timeNeeded){
+        return;
+    }
+    if( len < 0){
+        return;
+    }
+
+    if ((len%2) != 0){//even
+        current = Math.floor(len/2);
+        current += left;
+
+        createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+        createEventSuccess = createEventBlock(freetime, current + 1); //push.(30 min block in to event arr at current - 1);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        bb = left;
+        bt = current - 1;
+        tb = current + 2;
+        tt = right
+
+
+    }
+    else{//odd
+        current = Math.floor(len/2);
+        current += left;
+
+        createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        bb = left;
+        bt = current - 1;
+        tb = current + 1;
+        tt = right;
+
+
+    }
+
+    var distB = {
+        'left': bb,
+        'right': bt,
+    };
+    var distT = {
+        'left': tb,
+        'right': tt,
+    };
+    worklist.push(distB);
+    worklist.push(distT);
+
+    evenDistributionRec(freetime, bb, bt, worklist);
+
+
+
+}
+
+
+//var worklist = [];
+function evenDisRTest(freetime, left, right){
+    console.log(left);
+    console.log(right);
+
+    var bb, bt, tb, tt;
+    var len = (right - left);
+
+    var createEventSuccess;
+    if(timeAllocatedForProj >= timeNeeded){
+        return;
+    }
+    if( len < 0){
+        return;
+    }
+
+    if ((len%2) != 0){//even
+        current = Math.floor(len/2);
+        current += left;
+
+        createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        if(timeAllocatedForProj >= timeNeeded){
+            return;
+        }
+
+        createEventSuccess = createEventBlock(freetime, current + 1); //push.(30 min block in to event arr at current - 1);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        bb = left;
+        bt = current - 1;
+        tb = current + 2;
+        tt = right
+
+
+    }
+    else{//odd
+        current = Math.floor(len/2);
+        current += left;
+
+        createEventSuccess = createEventBlock(freetime, current); //push.(30 min block in to event arr at current);
+        if(createEventSuccess) timeAllocatedForProj += 0.5; // adds 30 mins to timeAllocated
+
+        bb = left;
+        bt = current - 1;
+        tb = current + 1;
+        tt = right;
+
+
+    }
+
+    var distB = {
+        'left': bb,
+        'right': bt,
+    };
+    var distT = {
+        'left': tb,
+        'right': tt,
+    };
+    worklist.push(distB);
+    worklist.push(distT);
+
+    left = worklist[0].left
+    right = worklist[0].right
+    worklist.shift()
+    evenDisRTest(freetime, left, right);
+
+
+
 }
