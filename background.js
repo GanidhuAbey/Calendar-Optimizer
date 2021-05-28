@@ -1,18 +1,29 @@
-//chrome.identity.getAuthToken({ interactive: true });
+//just seperate what you need into a different file and include it here.
+importScripts("lib/notification_system.js")
+
+//TODO: save settings in chrome.storage.
+chrome.alarms.create({ delayInMinutes: 0, periodInMinutes: 0.5 });
+
+const DAY_IN_MILLISECONDS = 8.64e+7;
+
+
+var allDeadLines = [];
+var missedEvents = [];
 
 var duedate;//DueDate ENDS at 5 pm of that Day need to fix it
 var current;
 
-
+//in hours
 var timeNeeded;
+
 var timeOfEvent = 0;
 var timeAllocatedForProj = 0;
 var eventsCollector = [];
 
-//will be set in user preferences
-var START_DAY = 0;
+var notifEvent;
 
-var feeds = {};
+var newNotification = false;
+var newEvent = 0;
 
 var counter = 0;
 var globalcounter = 0;
@@ -33,79 +44,86 @@ feeds.requestInteracticeAuthToken = function() {
     })
 }
 
+
+/*========================================================
+Description: central function that handles creating the deadline events and posting
+            it to google api.
+Parameters: none
+Returns: none
+SideEffects: none
+Globals Used: duedate, current, timeNeeded, timeOfEvent, recentEvent, feeds
+Notes:- none
+========================================================*/
 feeds.fetchEvents = function() {
     chrome.identity.getAuthToken({interactive: false}, async function(token) {
-        var calList = [];
-        var events = [];
-        var calendarIds = [];
-        calList = await GetData(feeds.CALENDAR_LIST_API_URL_, token);
+        //did this the easy way, hard way is to somehow make fetching the end_time
+        //data asynchronus so that we dont have to work inside this get call.
+        chrome.storage.local.get(["end_time"], async function(result) {
+            var calList = [];
+            var events = [];
+            var calendarIds = [];
+            calList = await GetData(feeds.CALENDAR_LIST_API_URL_, token);
 
-        var k;
-        for (k = 0; k < calList.items.length; k++) {
-            calendarIds.push(calList.items[k].id);
-        }
-
-        var i;
-        for (i = 0; i < calendarIds.length; i++) {
-            var d = duedate.toISOString();
-            var c = current.toISOString();
-
-            var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(calendarIds[i]));
-            var params = {orderBy: "startTime", singleEvents: true, timeMax: d, timeMin: c}
-            url = url + new URLSearchParams(params);
-
-            var eventData = await GetData(url, token);
-            var j;
-            for (j = 0; j < eventData.items.length; j++) {
-                events.push(eventData.items[j]);
+            var k;
+            for (k = 0; k < calList.items.length; k++) {
+                calendarIds.push(calList.items[k].id);
             }
-        }
+
+            var i;
+            for (i = 0; i < calendarIds.length; i++) {
+                var d = duedate.toISOString();
+                var c = current.toISOString();
+
+                var url = feeds.CALENDAR_EVENTS_API_URL_.replace('{calendarId}', encodeURIComponent(calendarIds[i]));
+                var params = {orderBy: "startTime", singleEvents: true, timeMax: d, timeMin: c}
+                url = url + new URLSearchParams(params);
+
+                var eventData = await GetData(url, token);
+                var j;
+                for (j = 0; j < eventData.items.length; j++) {
+                    events.push(eventData.items[j]);
+                }
+            }
 
 
-        events = filterMonthlyEvents(events);
+            events = filterMonthlyEvents(events);
 
-        events = orderByDays(events);
+            events = orderByDays(events, duedate);
 
-        console.log("events", events);
+            console.log("events", events);
 
-        var freetime = createFreetimeArr(events);
-        console.log("freetime", freetime);
+            var freetime = createFreetimeArr(events, new Date(), result.end_time);
 
-        CreateEvenDistribution(freetime);
-        console.log("eventsCollector", eventsCollector);
+            console.log("freetime", freetime);
 
-        console.log("freetime", freetime);
-        feeds.pushEvents(eventsCollector);
+            var percentage = calculatePercentages(freetime);
+            //console.log(percentage);
 
-        //var percentage = calculatePercentages(freetime);
-        //console.log(percentage);
+            console.log("time", timeNeeded);
+            var allocation = allocateFreeTime(freetime, percentage);
+            console.log("allocation", allocation);
 
-        //console.log("time", timeNeeded);
-        //var allocation = allocateFreeTime(freetime, percentage);
-        //console.log("allocation", allocation);
-
-        //var newEventsList = createEventList(freetime, allocation);
-        //console.log("newEventsList", newEventsList);
+            var newEventsList = createEventList(freetime, allocation);
+            console.log("newEventsList", newEventsList);
+            //feeds.pushEvents(newEventsList);
 
 
-        /*
-        var firstEvent = grabFirstEvent(newEventsList);
-
-        //check that event was returned
-        if (firstEvent != false) {
-            timeOfEvent = new Date(firstEvent.start.dateTime);
-            timeOfEvent.getTime();
-        }
-
-        chrome.runtime.sendMessage({"message": "notification", "timer": timeOfEvent})
-        */
-
-        console.log("Finished");
+            allDeadLines.push(newEventsList);
+            console.log("Finished");
+        });
     });
-
 }
 
-
+/*========================================================
+Description: filters events to remove events without a start or end time (these
+            would be events that span an entire day like birthday events)
+Parameters: newEventsList (1-dimensional array of all the new deadline events added)
+Returns: newEventsList[0] or false (returns the first element in the given list
+                                    or false if that event does not exist)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function grabFirstEvent(newEventsList) {
     if (newEventsList.length > 0) {
         return newEventsList[0];
@@ -113,6 +131,17 @@ function grabFirstEvent(newEventsList) {
     return false;
 }
 
+/*========================================================
+Description: filters events to remove events without a start or end time (these
+            would be events that span an entire day like birthday events)
+Parameters: events (1- dimensional array presenting all the events from users
+                    current time to the due date the user set.)
+Returns: filteredEvents (1-dimensional array that filters out events without a
+                        start or end time.)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function filterMonthlyEvents(events) {
 
     var filteredEvents = [];
@@ -126,7 +155,17 @@ function filterMonthlyEvents(events) {
     return filteredEvents;
 }
 
-function orderByDays(events) {
+/*========================================================
+Description: orders the list of events into individual days
+Parameters: events (1-dimensional array presenting all the events from users
+                    current time to the due date the user set.)
+Returns: allEvents (2-dimensional array that organizes the events into individual
+                    days)
+SideEffects: none
+Globals Used: duedate, current,
+Notes:- none
+========================================================*/
+function orderByDays(events, endDate) {
     var allEvents = [];
 
 
@@ -137,7 +176,7 @@ function orderByDays(events) {
     currentStart.setSeconds(0);
     currentStart.setMilliseconds(0);
 
-    var difference = (duedate).getTime() - currentStart.getTime();
+    var difference = (endDate).getTime() - currentStart.getTime();
     difference = Math.ceil(difference/86400000); //convert miliseconds to days
 
     //console.log(difference);
@@ -174,6 +213,14 @@ function orderByDays(events) {
     return allEvents;
 }
 
+/*========================================================
+Description: calculates the amount of freetime a user has in days as a percentage
+Parameters: freetime (2-dimensional array of freetime slots in users calendar per day)
+Returns: percentage (1-dimensional array presenting amount of freetime in day as %)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function calculatePercentages(freetime) {
     var time = convertToMiliseconds(freetime);
     //console.log(time);
@@ -190,7 +237,16 @@ function calculatePercentages(freetime) {
     return percentage;
 }
 
-//allocates user freetime and returns array of hours needed each day
+/*========================================================
+Description: allocates user freetime and returns array of hours needed each day
+Parameters: freetime (2-dimensional array of freetime slots in users calendar per day)
+            percentage (1-dimensional array presenting amount of freetime in day as %)
+Returns: allocate (the amount of time that needs to be allocated for the deadline
+                  event in users calendar)
+SideEffects: none
+Globals Used: timeNeeded
+Notes:- none
+========================================================*/
 function allocateFreeTime(freetime, percentage) {
     //convert freetime array to hours
     var milliseconds = convertToMiliseconds(freetime);
@@ -208,6 +264,16 @@ function allocateFreeTime(freetime, percentage) {
     return allocate;
 }
 
+
+
+/*========================================================
+Description: calculate the average value from an array of numbers. (sum array and divide by length)
+Parameters: time (1-dimensional array representing total freetime in day in milliseconds)
+Returns: sum / size (average of the given array)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function calculateAverage(time) {
     var sum = 0;
     var size = time.length;
@@ -219,7 +285,14 @@ function calculateAverage(time) {
     return sum / size;
 }
 
-//converts freetime array to hours
+/*========================================================
+Description: converts the time slots from freetime array to miliseconds
+Parameters: freetime (2-dimensional array of freetime slots in users calendar per day)
+Returns: time (1-dimensional array representing total freetime in day in milliseconds)
+SideEffects: none
+Globals Used: none
+Notes:- none
+========================================================*/
 function convertToMiliseconds(freetime) {
     var time = [];
 
@@ -236,6 +309,17 @@ function convertToMiliseconds(freetime) {
     return time;
 }
 
+
+/*========================================================
+Description: asynchronus function to make fetch request,
+             currently only handles GET request
+Parameters:url (a url that the fetch request is making a request to)
+           token (the required google api token given from user)
+Returns: none
+SideEffects: none
+Globals Used: none
+Notes:- need to implement a more generalized version allowing for POST requests
+========================================================*/
 async function GetData(url = '', token) {
     const response = await fetch(url, {
         headers: {
@@ -246,26 +330,66 @@ async function GetData(url = '', token) {
     return data;
 }
 
+
+
+/*========================================================
+Description: listens for user request to create new deadline events.
+Parameters:none
+Returns: none
+SideEffects: none
+Globals Used: current, duedate, timeNeeded
+Notes:- none
+========================================================*/
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "sign_in" ) {
         current = new Date();
         duedate = request.duedate + 25200000; //add 7 hours
         timeNeeded = request.requiredTime;
-        //console.log(duedate);
+
         feeds.requestInteracticeAuthToken();
     }
   }
 );
 
-//TODO: send notification to user email.
+//TODO: Add some indicator on the settings page to indicate that settigns have been
+//     updated.
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
-    if( request.message === "made_it" ) {
-        console.log("notification should be sent from here to user email now")
+    if( request.message === "settings" ) {
+        //console.log("the start_time is: ", result);
+        const start_time = setTimeOfDay(request.startTime);
+        chrome.storage.local.set({start_time});
+
+        const end_time = setTimeOfDay(request.endTime);
+        chrome.storage.local.set({end_time});
+
+        const snoozeTime = request.snoozeTime;
+        console.log("the updated snooze is: ", snoozeTime);
+        chrome.storage.local.set({snoozeTime});
+
+        console.log("settings updated");
     }
   }
 );
+
+
+
+function setTimeOfDay(timeOfDay, start) {
+    var startArray = timeOfDay.split(":");
+
+    var hour = parseInt(startArray[0], 10);
+    var minute = parseInt(startArray[1], 10);
+
+    var dateTime;
+
+    dateTime = {
+        hour: hour,
+        minute: minute,
+    };
+
+    return dateTime;
+}
 
 
 /*========================================================
@@ -279,14 +403,20 @@ Notes:- I have to fix the gap option in this function
       - Fix the filling array helper Function
       - make gap, start_of_day, end_of_day global variables
 ========================================================*/
-function createFreetimeArr(eventsArr){
+function createFreetimeArr(eventsArr, startDate, endDate){
 
     //Variables To be set Gloabally
     var gap; // Take the abs of gap
     gap = 15 * 60000;// 15 mins gap break after event in milliseconds
-    var start_of_day = new Date();
-    var end_of_day = createDateVar(21,0,0);
+    var start_of_day = new Date(startDate.getTime());
 
+    var end_of_day = new Date(startDate.getTime());
+
+    end_of_day.setHours(endDate.hour);
+    end_of_day.setMinutes(endDate.minute);
+
+
+    //console.log("freetime from ", start_of_day, "to ", end_of_day);
 
 
     var freetime = [];
@@ -306,7 +436,7 @@ function createFreetimeArr(eventsArr){
     var i;
     for(i = 0; i < eventsArr.length; i++){
 
-        currentTimeOfDay = new Date(start_of_day);
+        currentTimeOfDay = new Date(start_of_day.getTime());
         numOfEvents = eventsArr[i].length;
 
         var j;
@@ -747,19 +877,7 @@ function createDateVar(hours, minutes, seconds){
 
     return date;
 }
-function sumArr(arr, len){
-  var sum = 0;
-  var i;
-  for(i = 0; i < len; i++){
-      sum += arr[i];
-  }
-  return sum;
-}
-
-
-/*========================================================
-Work-in Progress functions
-========================================================*/
+/*========================================================*/
 
 function workInProgressRec(freetime, left, right, secondLeft){
     var bb, bt, tb, tt;
@@ -1053,4 +1171,15 @@ function evenDisRTest(freetime, left, right){
 
 
 
+=======
+function loadScript(scriptName) {
+    var scriptEl = document.createElement('script');
+    scriptEl.src = chrome.extension.getURL('lib/' + scriptName + '.js');
+    //scriptEl.addEventListener('load', callback, false);
+    document.head.appendChild(scriptEl);
+}
+
+//opens a new tab with the given url.
+function openPage(newUrl) {
+    chrome.tabs.create({url: newUrl});
 }
