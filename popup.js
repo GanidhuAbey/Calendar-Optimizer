@@ -10,7 +10,7 @@ document.getElementById('submitEvents').addEventListener("click", function() {
     //TODO: currently the only way the settings are inputted is when a user adds their events, this should not be the case, as notifications
     //      run without having to add events first and they also need to know the user's start and end times to reschedule their events.
     chrome.runtime.sendMessage({"message": "sign_in",
-                                "duedate": Date.parse(document.getElementById('due').value),
+                                "duedate": document.getElementById('due').value,
                                 "requiredTime": document.getElementById('timeNeeded').value});
 });
 

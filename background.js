@@ -1,5 +1,5 @@
 //just seperate what you need into a different file and include it here.
-importScripts("lib/notification_system.js", "lib/duedate.js");
+importScripts("lib/notification_system.js", "lib/duedate_system.js");
 
 //TODO: save settings in chrome.storage.
 chrome.alarms.create({ delayInMinutes: 1, periodInMinutes: 1 });
@@ -35,7 +35,6 @@ feeds.CALENDAR_EVENTS_API_URL_ = 'https://www.googleapis.com/calendar/v3/calenda
 
 
 feeds.requestInteracticeAuthToken = function() {
-    duedate = new Date(duedate);
     console.log(duedate);
     console.log(current);
     chrome.identity.getAuthToken({interactive: true}, async function(token) {
@@ -94,7 +93,7 @@ feeds.fetchEvents = function() {
 
             console.log("events", events);
 
-            var freetime = createFreetimeArr(events, new Date(), result.end_time);
+            var freetime = createFreetimeArr(events, current, result.end_time);
 
             console.log("freetime", freetime);
 
@@ -106,8 +105,26 @@ feeds.fetchEvents = function() {
             console.log("allocation", allocation);
 
             var newEventsList = createEventList(freetime, allocation);
+
+            var allEventsInDays = orderByDays(newEventsList, duedate);
+
+
             console.log("newEventsList", newEventsList);
-            feeds.pushEvents(newEventsList);
+            console.log("events seperated into days", allEventsInDays);
+
+            var seperatedEvents = [];
+            var i;
+            for (i = 0; i < allEventsInDays.length; i++) {
+                var eventsInDay = allEventsInDays[i];
+                console.log("freetime of that day", freetime[i]);
+                seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
+            }
+
+            console.log(seperatedEvents);
+
+            for (i = 0; i < seperatedEvents.length; i++) {
+                feeds.pushEvents(seperatedEvents[i]);
+            }
 
 
 
@@ -193,7 +210,12 @@ chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if( request.message === "sign_in" ) {
         current = new Date();
-        duedate = request.duedate + 25200000; //add 7 hours
+        duedate = new Date(request.duedate); //add 7 hours
+        duedate = new Date(duedate.getTime() + DAY_IN_MILLISECONDS);
+        duedate.setHours(23);
+        duedate.setMinutes(0);
+        duedate.setSeconds(0);
+
         timeNeeded = request.requiredTime;
 
         feeds.requestInteracticeAuthToken();
@@ -279,26 +301,28 @@ SideEffects: Adds event to the users Calendar
 Globals Used: none
 Notes: NOT COMPLETE
 ========================================================*/
-feeds.pushEvents = function(newEventsList){
+feeds.pushEvents = async function(newEventsList){
 
 
-    chrome.identity.getAuthToken({interactive: false}, function(token){// Get authtoken and calls function(token)
-
+    chrome.identity.getAuthToken({interactive: false}, async function(token){// Get authtoken and calls function(token)
       var i;
       for(i = 0; i < newEventsList.length; i++){
-          fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', //sending a request to the google calendar api, primary user calendar
-          {
-              method: 'POST', // Sends the information in to the api
-              headers: {
-                  'Authorization': 'Bearer ' + token, //type of permissions + authorization token for the api
-              },
-              body: JSON.stringify(newEventsList[i]), // Data being send to the api
-
-          })
-          .then(data => console.log(data)); // log the sent request in the terminal
+          var something = await postEvents(newEventsList[i], token);
       }
     });
 
+}
+
+async function postEvents(body, token) {
+    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify(body),
+    })
+    const data = await response.json();
+    return true;
 }
 
 /*========================================================
