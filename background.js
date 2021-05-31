@@ -118,14 +118,19 @@ feeds.fetchEvents = function() {
                 var eventsInDay = allEventsInDays[i];
                 console.log("freetime of that day", freetime[i]);
                 seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
+                //assignEventsToDay(freetime[i], eventsInDay);
             }
 
-            console.log(seperatedEvents);
+            var listOfEvents = [];
 
             for (i = 0; i < seperatedEvents.length; i++) {
-                feeds.pushEvents(seperatedEvents[i]);
+                var j;
+                for (j = 0; j < seperatedEvents[i].length; j++) {
+                    listOfEvents.push(seperatedEvents[i][j]);
+                }
             }
 
+            feeds.pushEvents(listOfEvents, "deadlines");
 
 
 
@@ -301,20 +306,29 @@ SideEffects: Adds event to the users Calendar
 Globals Used: none
 Notes: NOT COMPLETE
 ========================================================*/
-feeds.pushEvents = async function(newEventsList){
-
-
+feeds.pushEvents = async function(newEventsList, calendarName=''){
     chrome.identity.getAuthToken({interactive: false}, async function(token){// Get authtoken and calls function(token)
+      //create calendar
+      calendarData = {
+          "summary": calendarName
+      };
+      var responseData = await postData(calendarData, 'https://www.googleapis.com/calendar/v3/calendars', token);
+
+
+
+      var eventUrl = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events';
+      var newUrl = eventUrl.replace("{calendarId}", responseData.id);
+
       var i;
       for(i = 0; i < newEventsList.length; i++){
-          var something = await postEvents(newEventsList[i], token);
+          await postData(newEventsList[i], newUrl, token);
       }
     });
 
 }
 
-async function postEvents(body, token) {
-    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+async function postData(body, url, token) {
+    const response = await fetch(url, {
         method: 'POST',
         headers: {
             'Authorization': 'Bearer ' + token,
@@ -322,7 +336,7 @@ async function postEvents(body, token) {
         body: JSON.stringify(body),
     })
     const data = await response.json();
-    return true;
+    return data;
 }
 
 /*========================================================

@@ -1,3 +1,5 @@
+//TODO: add input box for user to give name to deadline events they are adding
+
 var currentTime = new Date();
 var notificationTime;
 var notificationEvent;
