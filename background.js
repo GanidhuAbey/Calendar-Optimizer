@@ -117,8 +117,8 @@ feeds.fetchEvents = function() {
             for (i = 0; i < allEventsInDays.length; i++) {
                 var eventsInDay = allEventsInDays[i];
                 console.log("freetime of that day", freetime[i]);
-                seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
-                //assignEventsToDay(freetime[i], eventsInDay);
+                //seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
+                seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
             }
 
             var listOfEvents = [];
@@ -313,8 +313,6 @@ feeds.pushEvents = async function(newEventsList, calendarName=''){
           "summary": calendarName
       };
       var responseData = await postData(calendarData, 'https://www.googleapis.com/calendar/v3/calendars', token);
-
-
 
       var eventUrl = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events';
       var newUrl = eventUrl.replace("{calendarId}", responseData.id);
