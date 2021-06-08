@@ -2,7 +2,11 @@
 importScripts("lib/notification_system.js", "lib/duedate_system.js");
 
 //TODO: save settings in chrome.storage.
-chrome.alarms.create({ delayInMinutes: 1, periodInMinutes: 1 });
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.get('periodic', a => {
+    if (!a) chrome.alarms.create('periodic', { periodInMinutes: 1.0 });
+  });
+});
 
 const DAY_IN_MILLISECONDS = 8.64e+7;
 
@@ -25,7 +29,7 @@ var notifEvent;
 var feeds = {};
 
 var newNotification = false;
-var newEvent = 0;
+var newEvent = {start: {dateTime: 0}};
 
 var counter = 0;
 var globalcounter = 0;
@@ -118,7 +122,8 @@ feeds.fetchEvents = function() {
                 var eventsInDay = allEventsInDays[i];
                 console.log("freetime of that day", freetime[i]);
                 //seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
-                seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
+                //seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
+                console.log(evenDistributionRec([freetime[i]], 0, 1));
             }
 
             var listOfEvents = [];
@@ -235,9 +240,11 @@ chrome.runtime.onMessage.addListener(
     if( request.message === "settings" ) {
         //console.log("the start_time is: ", result);
         const start_time = setTimeOfDay(request.startTime);
+        console.log("the updated start time is: ", start_time);
         chrome.storage.local.set({start_time});
 
         const end_time = setTimeOfDay(request.endTime);
+        console.log("the updated end time is: ", end_time);
         chrome.storage.local.set({end_time});
 
         const snoozeTime = request.snoozeTime;
