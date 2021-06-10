@@ -122,8 +122,8 @@ feeds.fetchEvents = function() {
                 var eventsInDay = allEventsInDays[i];
                 console.log("freetime of that day", freetime[i]);
                 //seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
-                //seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
-                console.log(evenDistributionRec([freetime[i]], 0, 1));
+                seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
+                //console.log(evenDistributionRec([freetime[i]], 0, 1));
             }
 
             var listOfEvents = [];
