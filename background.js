@@ -4,7 +4,7 @@ importScripts("lib/notification_system.js", "lib/duedate_system.js");
 //TODO: save settings in chrome.storage.
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.get('periodic', a => {
-    if (!a) chrome.alarms.create('periodic', { periodInMinutes: 1.0 });
+    if (!a) chrome.alarms.create('periodic', { periodInMinutes: 15.0 });
   });
 });
 
@@ -99,48 +99,63 @@ feeds.fetchEvents = function() {
 
             var freetime = createFreetimeArr(events, current, result.end_time);
 
-            console.log("freetime", freetime);
+            var total_freetime = convertToMiliseconds(freetime);
 
-            var percentage = calculatePercentages(freetime);
-            //console.log(percentage);
-
-            console.log("time", timeNeeded);
-            var allocation = allocateFreeTime(freetime, percentage);
-            console.log("allocation", allocation);
-
-            var newEventsList = createEventList(freetime, allocation);
-
-            var allEventsInDays = orderByDays(newEventsList, duedate);
-
-
-            console.log("newEventsList", newEventsList);
-            console.log("events seperated into days", allEventsInDays);
-
-            var seperatedEvents = [];
-            var i;
-            for (i = 0; i < allEventsInDays.length; i++) {
-                var eventsInDay = allEventsInDays[i];
-                console.log("freetime of that day", freetime[i]);
-                //seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
-                seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
-                //console.log(evenDistributionRec([freetime[i]], 0, 1));
+            var sum = 0;
+            for (i = 0; i < total_freetime.length; i++) {
+                sum += total_freetime[i];
             }
 
-            var listOfEvents = [];
+            if ((timeNeeded * 3.6e+6) > sum) {
+                //cannot allocate the given time into users calendar
+                chrome.runtime.sendMessage({"message": "error",
+                                            "userTime": timeNeeded,
+                                            "scheduleTime": (sum / 3.6e+6)});
+            }
+            else {
+                console.log("freetime", freetime);
 
-            for (i = 0; i < seperatedEvents.length; i++) {
-                var j;
-                for (j = 0; j < seperatedEvents[i].length; j++) {
-                    listOfEvents.push(seperatedEvents[i][j]);
+                var percentage = calculatePercentages(freetime);
+                //console.log(percentage);
+
+                console.log("time", timeNeeded);
+                var allocation = allocateFreeTime(freetime, percentage);
+                console.log("allocation", allocation);
+
+                var newEventsList = createEventList(freetime, allocation);
+
+                var allEventsInDays = orderByDays(newEventsList, duedate);
+
+
+                console.log("newEventsList", newEventsList);
+                console.log("events seperated into days", allEventsInDays);
+
+                var seperatedEvents = [];
+                var i;
+                for (i = 0; i < allEventsInDays.length; i++) {
+                    var eventsInDay = allEventsInDays[i];
+                    console.log("freetime of that day", freetime[i]);
+                    //seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
+                    seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
+                    //console.log(evenDistributionRec([freetime[i]], 0, 1));
                 }
+
+                var listOfEvents = [];
+
+                for (i = 0; i < seperatedEvents.length; i++) {
+                    var j;
+                    for (j = 0; j < seperatedEvents[i].length; j++) {
+                        listOfEvents.push(seperatedEvents[i][j]);
+                    }
+                }
+
+                feeds.pushEvents(listOfEvents, "deadlines");
+
+
+
+                allDeadLines.push(newEventsList);
+                console.log("Finished");
             }
-
-            feeds.pushEvents(listOfEvents, "deadlines");
-
-
-
-            allDeadLines.push(newEventsList);
-            console.log("Finished");
         });
     });
 }

@@ -11,6 +11,11 @@ var nextNotificationTime = 3.6e+6;
 document.getElementById('submitEvents').addEventListener("click", function() {
     //TODO: currently the only way the settings are inputted is when a user adds their events, this should not be the case, as notifications
     //      run without having to add events first and they also need to know the user's start and end times to reschedule their events.
+
+    //remove previous error
+    var error = document.getElementById("error");
+    error.textContent = "";
+
     chrome.runtime.sendMessage({"message": "sign_in",
                                 "duedate": document.getElementById('due').value,
                                 "requiredTime": document.getElementById('timeNeeded').value});
@@ -43,6 +48,19 @@ document.getElementById('submitSettings').addEventListener("click", function() {
                                 "endTime": new String(endOfDay),
                                 "snoozeTime": snoozeTime});
 })
+
+
+chrome.runtime.onMessage.addListener(
+  function(request, sender, sendResponse) {
+    if( request.message === "error" ) {
+        var error = document.getElementById("error");
+        error.textContent = "not enough time in schedule to add events";
+        error.style.color = "red";
+    }
+  }
+);
+
+
 
 //Date.parse(document.getElementById('due').value)
 function openPage(evt, pageName) {
