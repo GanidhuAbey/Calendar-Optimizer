@@ -4,7 +4,7 @@ importScripts("lib/notification_system.js", "lib/duedate_system.js");
 //TODO: save settings in chrome.storage.
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.get('periodic', a => {
-    if (!a) chrome.alarms.create('periodic', { periodInMinutes: 15.0 });
+    if (!a) chrome.alarms.create('periodic', { periodInMinutes: 1.0 });
   });
 });
 
@@ -33,6 +33,8 @@ var newEvent = {start: {dateTime: 0}};
 
 var counter = 0;
 var globalcounter = 0;
+
+var deadline_name = "";
 
 feeds.CALENDAR_LIST_API_URL_ = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 feeds.CALENDAR_EVENTS_API_URL_ = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events?'
@@ -136,7 +138,7 @@ feeds.fetchEvents = function() {
                     var eventsInDay = allEventsInDays[i];
                     console.log("freetime of that day", freetime[i]);
                     //seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
-                    seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
+                    seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay, deadline_name));
                     //console.log(evenDistributionRec([freetime[i]], 0, 1));
                 }
 
@@ -149,7 +151,7 @@ feeds.fetchEvents = function() {
                     }
                 }
 
-                feeds.pushEvents(listOfEvents, "deadlines");
+                feeds.pushEvents(listOfEvents, deadline_name);
 
 
 
@@ -242,6 +244,7 @@ chrome.runtime.onMessage.addListener(
         duedate.setSeconds(0);
 
         timeNeeded = request.requiredTime;
+        deadline_name = request.deadlineName;
 
         feeds.requestInteracticeAuthToken();
     }

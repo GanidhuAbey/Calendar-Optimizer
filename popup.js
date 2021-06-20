@@ -16,9 +16,39 @@ document.getElementById('submitEvents').addEventListener("click", function() {
     var error = document.getElementById("error");
     error.textContent = "";
 
-    chrome.runtime.sendMessage({"message": "sign_in",
-                                "duedate": document.getElementById('due').value,
-                                "requiredTime": document.getElementById('timeNeeded').value});
+    //calculate maximum time from the length of time given
+    var due_date = new Date(document.getElementById('due').value);
+    var current_time = new Date();
+    var max_time = due_date.getTime() - current_time.getTime();
+    var user_time = document.getElementById('timeNeeded').value;
+
+    user_time = parseInt(user_time, 10);
+
+    //check if user has given name for events
+    var event_name = document.getElementById('eventName');
+
+    if (user_time == "") {
+        error.style.color = "red";
+        error.textContent = "please input how many hours of events you need!";
+    }
+    else if (isNaN(user_time)) {
+        error.style.color = "red";
+        error.textContent = "please input a valid number for time needed!";
+    }
+    else if (event_name.value == "") {
+        error.style.color = "red";
+        error.textContent = "please give a name for your events!";
+    }
+    else if (user_time * 3.6e+6 > max_time) {
+        error.style.color = "red";
+        error.textContent = "their isnt enough time in the day to allocate that many events!"
+    }
+    else {
+        chrome.runtime.sendMessage({"message": "sign_in",
+                                    "duedate": document.getElementById('due').value,
+                                    "requiredTime": document.getElementById('timeNeeded').value,
+                                    "deadlineName": event_name.value});
+    }
 });
 
 
