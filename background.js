@@ -3,9 +3,13 @@ importScripts("lib/notification_system.js", "lib/duedate_system.js");
 
 //TODO: save settings in chrome.storage.
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.get('periodic', a => {
-    if (!a) chrome.alarms.create('periodic', { periodInMinutes: 1.0 });
-  });
+    chrome.alarms.get('periodic', a => {
+        if (!a) chrome.alarms.create('periodic', { periodInMinutes: 1.0 });
+    });
+
+    //add array to store calendars
+    var old_calendars = [];
+    chrome.storage.local.set({old_calendars});
 });
 
 const DAY_IN_MILLISECONDS = 8.64e+7;
@@ -65,7 +69,7 @@ feeds.fetchEvents = function() {
     chrome.identity.getAuthToken({interactive: false}, async function(token) {
         //did this the easy way, hard way is to somehow make fetching the end_time
         //data asynchronus so that we dont have to work inside this get call.
-        chrome.storage.local.get(["end_time"], async function(result) {
+        chrome.storage.local.get(["end_time", "old_calendars"], async function(result) {
             var calList = [];
             var events = [];
             var calendarIds = [];
@@ -94,6 +98,17 @@ feeds.fetchEvents = function() {
 
 
             events = filterMonthlyEvents(events);
+            events.sort((event1, event2) => {
+                var event1_time = (new Date(event1.start.dateTime)).getTime();
+                var event2_time = (new Date(event2.start.dateTime)).getTime();
+
+                if (event1_time > event2_time) {
+                    return 1;
+                }
+                else {
+                    return -1;
+                }
+            });
 
             events = orderByDays(events, duedate);
 
@@ -153,10 +168,21 @@ feeds.fetchEvents = function() {
 
                 feeds.pushEvents(listOfEvents, deadline_name);
 
+                //push this calendar data into chrome.storage
+                result.old_calendars.push({
+                    "name": deadline_name,
+                    "date": duedate
+                });
 
+                console.log("all saved calendars: ", result.old_calendars);
+
+                const old_calendars = result.old_calendars;
+                chrome.storage.local.set({old_calendars});
 
                 allDeadLines.push(newEventsList);
-                console.log("Finished");
+
+                //send message to front end that events are added.
+                chrome.runtime.sendMessage({"message": "finished"});
             }
         });
     });

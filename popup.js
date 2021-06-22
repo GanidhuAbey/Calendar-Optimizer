@@ -16,6 +16,9 @@ document.getElementById('submitEvents').addEventListener("click", function() {
     var error = document.getElementById("error");
     error.textContent = "";
 
+    var loading = document.getElementById("loading");
+    loading.textContent = "";
+
     //calculate maximum time from the length of time given
     var due_date = new Date(document.getElementById('due').value);
     var current_time = new Date();
@@ -48,6 +51,10 @@ document.getElementById('submitEvents').addEventListener("click", function() {
                                     "duedate": document.getElementById('due').value,
                                     "requiredTime": document.getElementById('timeNeeded').value,
                                     "deadlineName": event_name.value});
+
+        var loading = document.getElementById('loading');
+        loading.style.color = "blue";
+        loading.textContent = "adding events, please wait...";
     }
 });
 
@@ -90,7 +97,15 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-
+chrome.runtime.onMessage.addListener(
+    function(request, sender, sendResponse) {
+        if( request.message === "finished" ) {
+            var loading = document.getElementById("loading");
+            loading.style.color = "blue";
+            loading.textContent = "events are added!";
+        }
+    }
+)
 
 //Date.parse(document.getElementById('due').value)
 function openPage(evt, pageName) {
