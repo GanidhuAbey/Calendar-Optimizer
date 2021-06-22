@@ -3,9 +3,13 @@ importScripts("lib/notification_system.js", "lib/duedate_system.js");
 
 //TODO: save settings in chrome.storage.
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.get('periodic', a => {
-    if (!a) chrome.alarms.create('periodic', { periodInMinutes: 1.0 });
-  });
+    chrome.alarms.get('periodic', a => {
+        if (!a) chrome.alarms.create('periodic', { periodInMinutes: 1.0 });
+    });
+
+    //add array to store calendars
+    var old_calendars = [];
+    chrome.storage.local.set({old_calendars});
 });
 
 const DAY_IN_MILLISECONDS = 8.64e+7;
@@ -33,6 +37,8 @@ var newEvent = {start: {dateTime: 0}};
 
 var counter = 0;
 var globalcounter = 0;
+
+var deadline_name = "";
 
 feeds.CALENDAR_LIST_API_URL_ = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 feeds.CALENDAR_EVENTS_API_URL_ = 'https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events?'
@@ -63,7 +69,7 @@ feeds.fetchEvents = function() {
     chrome.identity.getAuthToken({interactive: false}, async function(token) {
         //did this the easy way, hard way is to somehow make fetching the end_time
         //data asynchronus so that we dont have to work inside this get call.
-        chrome.storage.local.get(["end_time"], async function(result) {
+        chrome.storage.local.get(["end_time", "old_calendars"], async function(result) {
             var calList = [];
             var events = [];
             var calendarIds = [];
@@ -92,6 +98,17 @@ feeds.fetchEvents = function() {
 
 
             events = filterMonthlyEvents(events);
+            events.sort((event1, event2) => {
+                var event1_time = (new Date(event1.start.dateTime)).getTime();
+                var event2_time = (new Date(event2.start.dateTime)).getTime();
+
+                if (event1_time > event2_time) {
+                    return 1;
+                }
+                else {
+                    return -1;
+                }
+            });
 
             events = orderByDays(events, duedate);
 
@@ -99,48 +116,74 @@ feeds.fetchEvents = function() {
 
             var freetime = createFreetimeArr(events, current, result.end_time);
 
-            console.log("freetime", freetime);
+            var total_freetime = convertToMiliseconds(freetime);
 
-            var percentage = calculatePercentages(freetime);
-            //console.log(percentage);
-
-            console.log("time", timeNeeded);
-            var allocation = allocateFreeTime(freetime, percentage);
-            console.log("allocation", allocation);
-
-            var newEventsList = createEventList(freetime, allocation);
-
-            var allEventsInDays = orderByDays(newEventsList, duedate);
-
-
-            console.log("newEventsList", newEventsList);
-            console.log("events seperated into days", allEventsInDays);
-
-            var seperatedEvents = [];
-            var i;
-            for (i = 0; i < allEventsInDays.length; i++) {
-                var eventsInDay = allEventsInDays[i];
-                console.log("freetime of that day", freetime[i]);
-                //seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
-                //seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay));
-                console.log(evenDistributionRec([freetime[i]], 0, 1));
+            var sum = 0;
+            for (i = 0; i < total_freetime.length; i++) {
+                sum += total_freetime[i];
             }
 
-            var listOfEvents = [];
+            if ((timeNeeded * 3.6e+6) > sum) {
+                //cannot allocate the given time into users calendar
+                chrome.runtime.sendMessage({"message": "error",
+                                            "userTime": timeNeeded,
+                                            "scheduleTime": (sum / 3.6e+6)});
+            }
+            else {
+                console.log("freetime", freetime);
 
-            for (i = 0; i < seperatedEvents.length; i++) {
-                var j;
-                for (j = 0; j < seperatedEvents[i].length; j++) {
-                    listOfEvents.push(seperatedEvents[i][j]);
+                var percentage = calculatePercentages(freetime);
+                //console.log(percentage);
+
+                console.log("time", timeNeeded);
+                var allocation = allocateFreeTime(freetime, percentage);
+                console.log("allocation", allocation);
+
+                var newEventsList = createEventList(freetime, allocation);
+
+                var allEventsInDays = orderByDays(newEventsList, duedate);
+
+
+                console.log("newEventsList", newEventsList);
+                console.log("events seperated into days", allEventsInDays);
+
+                var seperatedEvents = [];
+                var i;
+                for (i = 0; i < allEventsInDays.length; i++) {
+                    var eventsInDay = allEventsInDays[i];
+                    console.log("freetime of that day", freetime[i]);
+                    //seperatedEvents.push(evenDistribution(freetime[i], eventsInDay));
+                    seperatedEvents.push(assignEventsToDay(freetime[i], eventsInDay, deadline_name));
+                    //console.log(evenDistributionRec([freetime[i]], 0, 1));
                 }
+
+                var listOfEvents = [];
+
+                for (i = 0; i < seperatedEvents.length; i++) {
+                    var j;
+                    for (j = 0; j < seperatedEvents[i].length; j++) {
+                        listOfEvents.push(seperatedEvents[i][j]);
+                    }
+                }
+
+                feeds.pushEvents(listOfEvents, deadline_name);
+
+                //push this calendar data into chrome.storage
+                result.old_calendars.push({
+                    "name": deadline_name,
+                    "date": duedate
+                });
+
+                console.log("all saved calendars: ", result.old_calendars);
+
+                const old_calendars = result.old_calendars;
+                chrome.storage.local.set({old_calendars});
+
+                allDeadLines.push(newEventsList);
+
+                //send message to front end that events are added.
+                chrome.runtime.sendMessage({"message": "finished"});
             }
-
-            feeds.pushEvents(listOfEvents, "deadlines");
-
-
-
-            allDeadLines.push(newEventsList);
-            console.log("Finished");
         });
     });
 }
@@ -227,6 +270,7 @@ chrome.runtime.onMessage.addListener(
         duedate.setSeconds(0);
 
         timeNeeded = request.requiredTime;
+        deadline_name = request.deadlineName;
 
         feeds.requestInteracticeAuthToken();
     }
