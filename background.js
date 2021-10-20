@@ -1,11 +1,22 @@
 //just seperate what you need into a different file and include it here.
 importScripts("lib/notification_system.js", "lib/duedate_system.js");
 
+const DEFAULT_START_TIME = "8:00"
+const DEFAULT_END_TIME = "21:00"
+
 //TODO: save settings in chrome.storage.
 chrome.runtime.onInstalled.addListener(() => {
     chrome.alarms.get('periodic', a => {
         if (!a) chrome.alarms.create('periodic', { periodInMinutes: 1.0 });
     });
+
+    var start_time = setTimeOfDay(DEFAULT_START_TIME);
+    var end_time = setTimeOfDay(DEFAULT_END_TIME);
+    var snoozeTime = 5;
+
+    chrome.storage.local.set({start_time});
+    chrome.storage.local.set({end_time});
+    chrome.storage.local.set({snoozeTime});
 
     //add array to store calendars
     var old_calendars = [];
